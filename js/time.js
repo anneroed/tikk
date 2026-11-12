@@ -72,3 +72,27 @@ export function nowInMinutes(date = new Date()) {
 
 export const todayKey = (date = new Date()) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+/** Del av døgnet for en tid i minutter (0–1439), slik vi sier det: «om ettermiddagen». */
+export function dayPart(total) {
+  const hour = Math.floor(mod(total, 1440) / 60);
+  if (hour < 6) return { name: 'om natta', icon: 'moon' };
+  if (hour < 9) return { name: 'om morgenen', icon: 'sunrise' };
+  if (hour < 12) return { name: 'på formiddagen', icon: 'sun' };
+  if (hour < 18) return { name: 'om ettermiddagen', icon: 'sun' };
+  return { name: 'om kvelden', icon: 'sunset' };
+}
+
+/** «1 time og 15 minutter», «45 minutter», «2 timer». */
+export function durationText(minutes) {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  const h = hours === 1 ? '1 time' : `${hours} timer`;
+  const m = rest === 1 ? '1 minutt' : `${rest} minutter`;
+  if (!hours) return m;
+  if (!rest) return h;
+  return `${h} og ${m}`;
+}
+
+/** Sekunder i tiden (minutter med desimaler), 0–59. */
+export const secondOf = (total) => mod(Math.round(total * 60), 60);

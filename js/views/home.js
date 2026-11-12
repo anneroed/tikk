@@ -3,7 +3,7 @@ import { LEVELS, isBuilt } from '../levels/index.js';
 import { navigate } from '../router.js';
 import { play } from '../sound.js';
 import { PARTS } from '../parts.js';
-import { getState, isLevelOpen, isOwned, levelProgress, setSound, PASS_SCORE } from '../store.js';
+import { getState, isLevelOpen, isOwned, levelProgress, practiceLevels, setSound, PASS_SCORE } from '../store.js';
 import { openPackages } from './package.js';
 import { capitalize, digital, nowInMinutes, timePhrase } from '../time.js';
 import { h, icon } from '../ui.js';
@@ -71,6 +71,20 @@ function pendingCard() {
     },
     h('span', { class: 'pack-card-gift' }),
     h('span', {}, h('strong', {}, count === 1 ? 'En uåpnet pakke' : `${count} uåpnede pakker`), h('small', {}, 'Trykk for å åpne')),
+  );
+}
+
+/** Øvingsrommet. Når hele løypa er ferdig, blir det hovedkortet øverst. */
+function practiceCard(pathDone) {
+  const levels = practiceLevels();
+  if (!levels.length) return null;
+  return h(
+    'button',
+    { class: pathDone ? 'continue-card' : 'practice-card', type: 'button', onclick: () => navigate('/ovingsrom') },
+    h('small', {}, pathDone ? 'Løypa er fullført' : 'Øvingsrom'),
+    h('strong', {}, pathDone ? 'Øvingsrom' : 'Bland og øv'),
+    h('span', { class: 'muted' }, `Blandede oppgaver fra ${levels.length === 1 ? 'nivå 1' : `${levels.length} nivåer`}`),
+    h('span', { class: 'continue-arrow' }, icon('forward')),
   );
 }
 
@@ -143,8 +157,7 @@ export function homeView({ onCleanup }) {
             h('span', { class: 'continue-arrow' }, icon('forward')),
           )
         : null,
-      h('h2', { class: 'section-title' }, 'Læringsløype'),
-      h('div', { class: 'level-list' }, LEVELS.map(levelCard)),
+      practiceCard(!current),
       h(
         'div',
         { class: 'tile-row' },
@@ -157,6 +170,8 @@ export function homeView({ onCleanup }) {
           h('small', {}, `${PARTS.filter((part) => isOwned(part.id)).length} av ${PARTS.length} deler`),
         ),
       ),
+      h('h2', { class: 'section-title' }, 'Læringsløype'),
+      h('div', { class: 'level-list' }, LEVELS.map(levelCard)),
     ),
   );
 }

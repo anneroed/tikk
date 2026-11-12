@@ -22,6 +22,7 @@ export function levelView({ params, onCleanup }) {
   const text = h('p', { class: 'step-text' });
   const label = h('p', { class: 'clock-label', 'aria-live': 'polite' });
   const hint = h('p', { class: 'clock-hint' });
+  const panel = h('div', { class: 'step-panel' });
   const extra = h('div', { class: 'step-extra' });
   const dots = h('div', { class: 'step-dots' }, steps.map(() => h('span')));
   const prev = h('button', { class: 'button button-ghost', type: 'button', onclick: () => show(index - 1) }, 'Forrige');
@@ -56,6 +57,7 @@ export function levelView({ params, onCleanup }) {
       ...step.clock,
       onChange: (time) => {
         if (step.label) label.textContent = step.label(time);
+        if (step.panel) panel.replaceChildren(step.panel(time));
       },
       // Kort der hun trykker på klokka og får vite hva hun trykket på.
       onTap: (target) => {
@@ -70,6 +72,7 @@ export function levelView({ params, onCleanup }) {
     label.textContent = step.label ? step.label(clock.getTime()) : '';
     label.hidden = !step.label && !step.onTap;
     if (step.onTap) label.textContent = step.tapPrompt ?? '';
+    panel.replaceChildren(...(step.panel ? [step.panel(clock.getTime())] : []));
     hint.textContent = step.hint ?? '';
     hint.hidden = !step.hint;
 
@@ -119,6 +122,7 @@ export function levelView({ params, onCleanup }) {
       dots,
       h('div', { class: 'clock-stage' }, clock.el),
       label,
+      panel,
       hint,
       h('section', { class: 'step-card' }, title, text, extra),
       h('div', { class: 'step-nav' }, prev, next),

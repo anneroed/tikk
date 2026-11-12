@@ -1644,3 +1644,221 @@ h2 {
 .home-pack {
   margin-top: 0;
 }
+
+/* --- Digital klokke og døgnet --- */
+
+.digital {
+  display: inline-flex;
+  align-items: baseline;
+  padding: 8px 18px;
+  border-radius: 16px;
+  background: #050608;
+  box-shadow: inset 0 0 0 1.5px var(--line);
+}
+
+.digital-time {
+  font: 700 38px/1 ui-monospace, 'SF Mono', Menlo, monospace;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.digital-time small {
+  font-size: 22px;
+  opacity: 0.75;
+}
+
+.day-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.day-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.day-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.day-badge .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.day-badge.is-sun .icon {
+  color: #ffcf4a;
+}
+
+.day-badge.is-moon .icon {
+  color: #a8b8ff;
+}
+
+.day-badge.is-sunrise .icon,
+.day-badge.is-sunset .icon {
+  color: #ff9f6b;
+}
+
+.day-track {
+  position: relative;
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #1b2350 0%, #2b3a7a 20%, #ff9f6b 27%, #8fd3ff 40%, #8fd3ff 62%, #ffb36b 75%, #3a2d6e 85%, #1b2350 100%);
+}
+
+.day-dot {
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: var(--text);
+  box-shadow: 0 0 0 4px rgb(0 0 0 / 0.35);
+  transition: left 0.15s ease;
+}
+
+.day-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.step-panel:empty,
+.round-context:empty {
+  display: none;
+}
+
+.round-context {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.round-prompt .digital-inline {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  color: var(--accent);
+}
+
+.step-panel {
+  display: flex;
+  justify-content: center;
+}
+
+.step-panel > .day-panel {
+  flex: 1;
+}
+
+/* --- Øvingsrom --- */
+
+.practice-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 56px 16px 20px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.practice-card small {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
+.practice-card strong {
+  font-size: 20px;
+}
+
+.practice-card .muted {
+  font-size: 15px;
+}
+
+.practice-card .continue-arrow {
+  color: var(--accent);
+}
+
+.practice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.practice-level {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: 18px;
+  background: var(--surface);
+  opacity: 0.55;
+  transition: opacity 0.2s ease;
+}
+
+.practice-level.is-on {
+  opacity: 1;
+}
+
+.practice-level.is-on .level-number {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.practice-check {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 2px var(--line);
+  color: var(--accent-text);
+}
+
+.practice-level.is-on .practice-check {
+  background: var(--accent);
+  box-shadow: none;
+}
+
+.practice-check .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.round-topic {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: -8px;
+}
+
+.round-progress span {
+  flex: 0 1 28px;
+  min-width: 10px;
+}

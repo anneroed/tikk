@@ -22,7 +22,7 @@ test('alle deler er gyldige og kan tegnes', () => {
 });
 
 test('hvert ferdig nivå gir en sjelden eller episk del', () => {
-  for (const n of [1, 2, 3, 4, 5]) {
+  for (const n of [1, 2, 3, 4, 5, 6, 7, 8]) {
     const reward = PARTS.find((part) => part.source.type === 'level' && part.source.level === n);
     assert.ok(reward, `nivå ${n} mangler belønning`);
     assert.ok(RARITY[reward.rarity].order >= 1, `nivå ${n} bør gi noe sjeldent`);

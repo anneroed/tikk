@@ -1,13 +1,16 @@
-// En oppgaverunde: 5 spørsmål, tilbakemelding etter hvert svar, oppsummering til slutt.
+// En oppgaverunde: 5 spørsmål fra ett nivå, eller 10 blandede i øvingsrommet.
+// Tilbakemelding etter hvert svar, oppsummering til slutt.
 // Feil svar gir ingen straff: appen viser riktig svar, gjerne med viserne i bevegelse.
 import { createClock } from '../clock.js';
 import { LEVELS, levelByNumber, isBuilt } from '../levels/index.js';
 import { goBack, navigate, setLeaveGuard } from '../router.js';
 import { play } from '../sound.js';
 import { MIN_PACK_SCORE, earnedParts, packPool, pickPack } from '../parts.js';
-import { PASS_SCORE, getState, grantParts, isLevelOpen, ownedIds, recordAnswer, recordRound } from '../store.js';
+import { PASS_SCORE, getState, grantParts, isLevelOpen, ownedIds, practiceLevels, recordAnswer, recordPractice, recordRound } from '../store.js';
+import { makePractice } from '../levels/practice.js';
 import { openPackages } from './package.js';
-import { minuteOf, mod, sameClockTime } from '../time.js';
+import { minuteOf, mod, sameClockTime, secondOf } from '../time.js';
+import { dayBadge, digitalDisplay } from './digital.js';
 import { backButton, confirmDialog, h, icon } from '../ui.js';
 
 const PRAISE = ['Riktig!', 'Helt riktig!', 'Stemmer!', 'Bra!', 'Sånn ja!'];
@@ -17,14 +20,31 @@ const randomOf = (list) => list[Math.floor(Math.random() * list.length)];
 /** Klokka nullstilles til dette før hvert spørsmål, så ingenting henger igjen fra forrige. */
 const BASE_CLOCK = { drag: [], tappable: false, hands: true, wedge: false, minuteLabels: false, seconds: false, running: false, snapHour: false, snapMinutes: 1, numerals: null };
 
-export function roundView({ params, onCleanup }) {
-  const level = levelByNumber(params.n);
-  if (!level || !isBuilt(level) || !isLevelOpen(level.n)) {
+/** Øvingsrunde: nivåene står i adressen, f.eks. #/ov/2-4-5. Bare nivåer hun har tilgang til, brukes. */
+export function practiceView({ params, onCleanup }) {
+  const allowed = practiceLevels();
+  const chosen = String(params.levels ?? '')
+    .split('-')
+    .map(Number)
+    .filter((n) => allowed.includes(n));
+  const levels = chosen.length ? chosen : allowed;
+  if (!levels.length) {
+    queueMicrotask(() => navigate('/ovingsrom', { replace: true }));
+    return h('div');
+  }
+  const questions = makePractice(levels, { skills: getState().skills });
+  return roundView({ params: {}, onCleanup }, { questions, practice: levels });
+}
+
+export function roundView({ params, onCleanup }, practiceRound = null) {
+  const practice = practiceRound?.practice ?? null;
+  const level = practice ? null : levelByNumber(params.n);
+  if (!practice && (!level || !isBuilt(level) || !isLevelOpen(level.n))) {
     queueMicrotask(() => navigate('/', { replace: true }));
     return h('div');
   }
 
-  const questions = level.content.makeRound();
+  const questions = practiceRound?.questions ?? level.content.makeRound();
   let index = 0;
   let score = 0;
   let answered = false;
@@ -33,14 +53,18 @@ export function roundView({ params, onCleanup }) {
   const stage = h('div', { class: 'clock-stage' }, clock.el);
   const progress = h('div', { class: 'round-progress' }, questions.map(() => h('span')));
   const prompt = h('h1', { class: 'round-prompt', 'aria-live': 'polite' });
+  const topic = h('p', { class: 'round-topic' });
   const hint = h('p', { class: 'clock-hint' });
+  const context = h('div', { class: 'round-context' });
   const answers = h('div', { class: 'round-answers' });
   const feedback = h('section', { class: 'feedback', hidden: true });
   const streak = h('span', { class: 'streak-chip' });
   const body = h(
     'main',
     { class: 'content round-content' },
+    topic,
     prompt,
+    context,
     stage,
     hint,
     answers,
@@ -67,7 +91,7 @@ export function roundView({ params, onCleanup }) {
   function showFeedback(correct, question, { sound = true } = {}) {
     answered = true;
     if (correct) score += 1;
-    recordAnswer(correct);
+    recordAnswer(correct, question.level ?? level?.n);
     updateStreak();
     markProgress(correct);
     if (sound) play(correct ? 'correct' : 'wrong');
@@ -143,10 +167,18 @@ export function roundView({ params, onCleanup }) {
 
   function renderSet(question) {
     clock.configure({ ...BASE_CLOCK, ...question.clock, time: question.start });
-    // check: 'minute' betyr at bare minuttviseren teller, uansett time.
-    const isRight = (time) =>
-      question.check === 'minute' ? minuteOf(Math.round(time)) === minuteOf(question.target) : sameClockTime(time, question.target);
+    // check: 'minute' / 'second' betyr at bare den viseren teller, uansett resten av klokka.
+    const isRight = (time) => {
+      if (question.check === 'second') return secondOf(time) === secondOf(question.target);
+      if (question.check === 'minute') return minuteOf(Math.round(time)) === minuteOf(question.target);
+      return sameClockTime(time, question.target);
+    };
     const answerTime = (time) => {
+      if (question.check === 'second') {
+        let delta = mod(secondOf(question.target) - secondOf(time), 60);
+        if (delta > 30) delta -= 60;
+        return Math.round(time * 60) / 60 + delta / 60;
+      }
       if (question.check !== 'minute') return question.target;
       let delta = mod(minuteOf(question.target) - minuteOf(Math.round(time)), 60);
       if (delta > 30) delta -= 60;
@@ -189,9 +221,20 @@ export function roundView({ params, onCleanup }) {
     feedback.hidden = true;
     progress.children[index].classList.add('is-current');
     prompt.textContent = question.prompt;
+    // I øvingsrommet står det hvilket nivå oppgaven er fra, så hun vet hva det handler om.
+    const from = question.level ? levelByNumber(question.level) : null;
+    topic.textContent = from ? `Nivå ${from.n} · ${from.title}` : '';
+    topic.hidden = !from;
     hint.textContent = question.hint ?? '';
     hint.hidden = !question.hint;
     stage.hidden = !question.clock && question.type === 'choice';
+    // Digital klokke og/eller «om ettermiddagen»-merke over den analoge klokka.
+    context.replaceChildren(
+      ...[
+        question.digital !== undefined && digitalDisplay(question.digital, { seconds: question.digitalSeconds }),
+        question.dayTime !== undefined && dayBadge(question.dayTime),
+      ].filter(Boolean),
+    );
     if (question.type === 'choice') renderChoice(question);
     if (question.type === 'tap') renderTap(question);
     if (question.type === 'set') renderSet(question);
@@ -211,6 +254,10 @@ export function roundView({ params, onCleanup }) {
 
   function finish() {
     setLeaveGuard(null);
+    if (practice) {
+      finishPractice();
+      return;
+    }
     const result = recordRound(level.n, score);
     const nextLevel = LEVELS.find((l) => l.n === level.n + 1);
     play(result.passed ? 'complete' : 'tap');
@@ -231,6 +278,8 @@ export function roundView({ params, onCleanup }) {
       message = isBuilt(nextLevel)
         ? `Nivå ${nextLevel.n}, ${nextLevel.title.toLowerCase()}, er låst opp.`
         : `Nivå ${nextLevel.n} blir låst opp når det er ferdig bygget.`;
+    } else if (result.newlyPassed && !nextLevel) {
+      message = 'Du har fullført hele løypa og kan lese klokka, fra urskiven til regning med tid. Sterkt jobbet!';
     } else if (result.passed) {
       message = 'Du kan ta en ny runde eller gå videre.';
     } else {
@@ -253,6 +302,41 @@ export function roundView({ params, onCleanup }) {
             : null,
           h('button', { class: `button button-wide ${result.newlyPassed ? 'button-soft' : ''}`, type: 'button', onclick: () => navigate(`/niva/${level.n}/oppgaver`, { replace: true }) }, 'Ny runde'),
           h('button', { class: 'button button-wide button-ghost', type: 'button', onclick: () => goBack() }, 'Hjem'),
+        ),
+      ),
+    );
+    progress.replaceChildren();
+  }
+
+  /**
+   * Slutt på en øvingsrunde. Pakke for minst 7 av 10, fra det høyeste nivået i runden,
+   * så det ikke lønner seg å øve bare på det letteste.
+   */
+  function finishPractice() {
+    recordPractice();
+    const need = Math.ceil(questions.length * 0.7);
+    const top = Math.max(...practice);
+    const pack = score >= need ? pickPack(ownedIds(), top, 5) : null;
+    grantParts([...(pack ? [pack] : []), ...earnedParts(getState())]);
+    play(score >= need ? 'complete' : 'tap');
+    let note = null;
+    if (score < need) note = `Få minst ${need} av ${questions.length} for å få en pakke.`;
+    else if (!pack) note = 'Du har alle pakkedelene fra disse nivåene.';
+    const again = `/ov/${practice.join('-')}`;
+    body.replaceChildren(
+      h(
+        'section',
+        { class: 'summary' },
+        h('div', { class: `summary-score ${score >= need ? 'is-passed' : ''}` }, h('span', {}, String(score)), h('small', {}, `av ${questions.length}`)),
+        h('h1', {}, score === questions.length ? 'Alle riktige!' : score >= need ? 'Godt øvd!' : 'Øvingen er ferdig'),
+        h('p', { class: 'muted' }, 'Nivåene du bommer mest på, kommer oftere neste gang.'),
+        packCard(note),
+        h(
+          'div',
+          { class: 'summary-actions' },
+          h('button', { class: 'button button-wide', type: 'button', onclick: () => navigate(again, { replace: true }) }, 'Ny øvingsrunde'),
+          h('button', { class: 'button button-wide button-soft', type: 'button', onclick: () => navigate('/ovingsrom', { replace: true }) }, 'Velg andre nivåer'),
+          h('button', { class: 'button button-wide button-ghost', type: 'button', onclick: () => navigate('/', { replace: true }) }, 'Hjem'),
         ),
       ),
     );

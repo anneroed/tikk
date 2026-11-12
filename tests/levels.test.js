@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { LEVELS } from '../js/levels/index.js';
 import { seeded } from '../js/levels/random.js';
-import { mod, sameClockTime, timePhrase } from '../js/time.js';
+import { minuteOf, mod, sameClockTime, secondOf, timePhrase } from '../js/time.js';
 
 const built = LEVELS.filter((level) => level.content);
 
@@ -22,7 +22,13 @@ test('hver runde har 5 gyldige spørsmål med nøyaktig ett riktig svar', () => 
           assert.equal(new Set(times).size, times.length, `like klokker (${question.prompt})`);
           assert.ok(question.options.length >= 3, question.prompt);
         } else if (question.type === 'set') {
-          assert.ok(!sameClockTime(question.start, question.target), 'klokka står allerede riktig');
+          const same =
+            question.check === 'second'
+              ? secondOf(question.start) === secondOf(question.target)
+              : question.check === 'minute'
+                ? minuteOf(question.start) === minuteOf(question.target)
+                : sameClockTime(question.start, question.target);
+          assert.ok(!same, `klokka står allerede riktig (nivå ${level.n})`);
         } else if (question.type === 'tap') {
           const { accept } = question;
           if (accept.kind === 'num') assert.ok(accept.n >= 1 && accept.n <= 12, `${question.prompt} → ${accept.n}`);

@@ -6,7 +6,8 @@ import { currentDesign, subscribe } from './store.js';
 import { homeView } from './views/home.js';
 import { installView } from './views/install.js';
 import { levelView } from './views/level.js';
-import { roundView } from './views/round.js';
+import { practiceView, roundView } from './views/round.js';
+import { practiceRoomView } from './views/practice-room.js';
 import { settingsView } from './views/settings.js';
 import { collectionView } from './views/collection.js';
 import { workshopView } from './views/workshop.js';
@@ -17,6 +18,8 @@ const routes = [
   { path: '/niva/:n/oppgaver', view: roundView, parent: '/' },
   { path: '/innstillinger', view: settingsView, parent: '/' },
   { path: '/samling', view: collectionView, parent: '/' },
+  { path: '/ovingsrom', view: practiceRoomView, parent: '/' },
+  { path: '/ov/:levels', view: practiceView, parent: '/ovingsrom' },
   { path: '/verksted', view: workshopView, parent: '/' },
   { path: '/verksted/:category', view: workshopView, parent: '/' },
   { path: '/installer', view: installView, parent: '/' },

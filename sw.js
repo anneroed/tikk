@@ -1,5 +1,5 @@
 // Øk VERSION ved hver publisering, ellers får ikke installerte apper den nye koden.
-const VERSION = '5';
+const VERSION = '8';
 const CACHE = `tikk-${VERSION}`;
 
 const PRECACHE = [
@@ -23,6 +23,12 @@ const PRECACHE = [
   'js/levels/level4.js',
   'js/levels/level5.js',
   'js/levels/common.js',
+  'js/levels/level6.js',
+  'js/levels/level7.js',
+  'js/levels/level8.js',
+  'js/views/digital.js',
+  'js/views/practice-room.js',
+  'js/levels/practice.js',
   'js/views/home.js',
   'js/views/level.js',
   'js/views/round.js',

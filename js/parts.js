@@ -27,6 +27,9 @@ export const PARTS = [
   { id: 'galakse', category: 'face', name: 'Galakse', rarity: 'episk', source: { type: 'level', level: 5 } },
   { id: 'midnatt', category: 'face', name: 'Midnatt', rarity: 'sjelden', source: { type: 'streak', count: 10 } },
   { id: 'gull', category: 'face', name: 'Gull', rarity: 'episk', source: { type: 'days', count: 7 } },
+  { id: 'skifer', category: 'face', name: 'Skifer', rarity: 'vanlig', source: { type: 'pack', level: 6 } },
+  { id: 'pastell', category: 'face', name: 'Pastell', rarity: 'vanlig', source: { type: 'pack', level: 8 } },
+  { id: 'kronograf', category: 'face', name: 'Kronograf', rarity: 'episk', source: { type: 'level', level: 6 } },
 
   // Visere
   { id: 'klassisk', category: 'hands', name: 'Klassisk', rarity: 'vanlig', source: { type: 'default' } },
@@ -35,6 +38,7 @@ export const PARTS = [
   { id: 'prikk', category: 'hands', name: 'Prikk', rarity: 'vanlig', source: { type: 'pack', level: 3 } },
   { id: 'pil', category: 'hands', name: 'Pil', rarity: 'sjelden', source: { type: 'level', level: 2 } },
   { id: 'glod', category: 'hands', name: 'Glød', rarity: 'episk', source: { type: 'streak', count: 20 } },
+  { id: 'diamant', category: 'hands', name: 'Diamant', rarity: 'vanlig', source: { type: 'pack', level: 7 } },
 
   // Tall
   { id: 'arabiske', category: 'numerals', name: 'Vanlige tall', rarity: 'vanlig', source: { type: 'default' } },
@@ -42,6 +46,7 @@ export const PARTS = [
   { id: 'fire', category: 'numerals', name: '12, 3, 6, 9', rarity: 'vanlig', source: { type: 'pack', level: 2 } },
   { id: 'store', category: 'numerals', name: 'Store tall', rarity: 'vanlig', source: { type: 'pack', level: 4 } },
   { id: 'romerske', category: 'numerals', name: 'Romertall', rarity: 'sjelden', source: { type: 'level', level: 1 } },
+  { id: 'digitale', category: 'numerals', name: 'Digitale tall', rarity: 'sjelden', source: { type: 'level', level: 7 } },
 
   // Fargetemaer (viserfargene, også i forklaringstekstene)
   { id: 'standard', category: 'theme', name: 'Standard', rarity: 'vanlig', source: { type: 'default' } },
@@ -52,6 +57,9 @@ export const PARTS = [
   { id: 'monokrom', category: 'theme', name: 'Monokrom', rarity: 'vanlig', source: { type: 'pack', level: 5 } },
   { id: 'lava', category: 'theme', name: 'Lava', rarity: 'sjelden', source: { type: 'days', count: 3 } },
   { id: 'aurora', category: 'theme', name: 'Aurora', rarity: 'sjelden', source: { type: 'total', count: 100 } },
+  { id: 'hav', category: 'theme', name: 'Hav', rarity: 'vanlig', source: { type: 'pack', level: 6 } },
+  { id: 'sorbet', category: 'theme', name: 'Sorbet', rarity: 'vanlig', source: { type: 'pack', level: 7 } },
+  { id: 'regnbue', category: 'theme', name: 'Regnbue', rarity: 'episk', source: { type: 'level', level: 8 } },
 ];
 
 export const partById = (id) => PARTS.find((part) => part.id === id);
@@ -126,6 +134,9 @@ export const FACES = {
   neon: { fill: '#08060f', ring: '#ff3df2', glow: true, tick: '#3e2d57', tickMajor: '#5ef3ff', number: '#5ef3ff', cap: '#ff3df2' },
   galakse: { fill: '#2a1a63', fill2: '#06030f', pattern: 'stars', ring: '#7b6cf0', tick: '#5b4f99', tickMajor: '#d9d2ff', number: '#efeaff', cap: '#efeaff' },
   midnatt: { fill: '#10203d', fill2: '#050912', ring: '#22396a', tick: '#2f4878', tickMajor: '#8fb4ff', number: '#dbe6ff', cap: '#8fb4ff' },
+  skifer: { fill: '#2a323c', fill2: '#1a1f26', ring: '#4b5868', tick: '#5d6b7c', tickMajor: '#dfe6ee', number: '#eef2f6', cap: '#dfe6ee' },
+  pastell: { light: true, fill: '#f6e9f2', fill2: '#e6eefc', ring: '#c9b8e8', tick: '#b9a9d4', tickMajor: '#5b4a7a', number: '#4a3d66', cap: '#5b4a7a' },
+  kronograf: { fill: '#121418', fill2: '#050607', ring: '#c9ced6', doubleRing: true, bezel: '#ff5d73', tick: '#4b525c', tickMajor: '#f2f4f7', number: '#f2f4f7', cap: '#ff5d73', font: CONDENSED },
   gull: { fill: '#1d1912', fill2: '#0d0b07', ring: '#d4af37', doubleRing: true, tick: '#6b5a32', tickMajor: '#e6c766', number: '#f1d98a', cap: '#d4af37', font: SERIF },
 };
 
@@ -138,6 +149,9 @@ export const THEMES = {
   godteri: { dark: { hour: '#ff8fc7', minute: '#7ee6ff', second: '#fff275' }, light: { hour: '#d6338a', minute: '#1594b8', second: '#b39b00' } },
   monokrom: { dark: { hour: '#f2f4f7', minute: '#9aa3ae', second: '#ff5d73' }, light: { hour: '#1d2025', minute: '#6b7480', second: '#d62d4a' } },
   lava: { dark: { hour: '#ff6a3d', minute: '#ffd23f', second: '#ff2e63' }, light: { hour: '#c73e12', minute: '#b88a00', second: '#c4103f' } },
+  hav: { dark: { hour: '#4fd1c5', minute: '#5b9dff', second: '#ffd166' }, light: { hour: '#0f8a7e', minute: '#1f5fd1', second: '#b8860b' } },
+  sorbet: { dark: { hour: '#ffb3c7', minute: '#b5f5a8', second: '#ffe08a' }, light: { hour: '#d6457a', minute: '#3f9a2e', second: '#b88a00' } },
+  regnbue: { dark: { hour: '#ff6b9a', minute: '#5cc8ff', second: '#ffe066' }, light: { hour: '#d6336c', minute: '#1c7ed6', second: '#c99a00' } },
   aurora: { dark: { hour: '#7cffb2', minute: '#b58cff', second: '#5ce1ff' }, light: { hour: '#0f9150', minute: '#6b3fd1', second: '#0b8fb3' } },
 };
 

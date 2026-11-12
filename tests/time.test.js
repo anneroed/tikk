@@ -53,3 +53,15 @@ test('stor forbokstav også inni HTML', async () => {
   assert.equal(capitalize('<b class="t-hour">timeviseren</b> er kort'), '<b class="t-hour">Timeviseren</b> er kort');
   assert.equal(capitalize('halv tre'), 'Halv tre');
 });
+
+test('varighet og del av døgnet', async () => {
+  const { durationText, dayPart } = await import('../js/time.js');
+  assert.equal(durationText(45), '45 minutter');
+  assert.equal(durationText(60), '1 time');
+  assert.equal(durationText(75), '1 time og 15 minutter');
+  assert.equal(durationText(121), '2 timer og 1 minutt');
+  assert.equal(dayPart(14 * 60 + 30).name, 'om ettermiddagen');
+  assert.equal(dayPart(30).name, 'om natta');
+  assert.equal(dayPart(20 * 60).name, 'om kvelden');
+  assert.equal(dayPart(7 * 60).name, 'om morgenen');
+});

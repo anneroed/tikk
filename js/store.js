@@ -10,7 +10,8 @@ const fresh = () => ({
   sound: true,
   unlockAll: false,
   levels: {},
-  stats: { answered: 0, correct: 0, streak: 0, bestStreak: 0, days: [] },
+  stats: { answered: 0, correct: 0, streak: 0, bestStreak: 0, days: [], practiceRounds: 0 },
+  skills: {}, // per nivå: { answered, correct }, brukes for å øve mer på det hun bommer på
   owned: [], // deler hun har fått (standarddelene er alltid hennes)
   pending: [], // uåpnede pakker: del-id-er som venter på å bli åpnet
   design: { ...DEFAULT_DESIGN },
@@ -63,8 +64,12 @@ export function isLevelOpen(n) {
   return n === 1 || state.unlockAll || levelProgress(n - 1).passed;
 }
 
-export function recordAnswer(correct) {
+export function recordAnswer(correct, level = null) {
   const { stats } = state;
+  if (level) {
+    const skill = state.skills[level] ?? { answered: 0, correct: 0 };
+    state.skills[level] = { answered: skill.answered + 1, correct: skill.correct + (correct ? 1 : 0) };
+  }
   stats.answered += 1;
   if (correct) {
     stats.correct += 1;
@@ -85,6 +90,16 @@ export function recordRound(n, score) {
   state.levels[n] = { rounds: before.rounds + 1, best: Math.max(before.best, score), passed };
   save();
   return { passed: score >= PASS_SCORE, newlyPassed: passed && !before.passed };
+}
+
+/** Nivåer hun kan øve på i øvingsrommet: de hun har klart (eller alle åpne i foreldremodus). */
+export function practiceLevels() {
+  return [1, 2, 3, 4, 5, 6, 7, 8].filter((n) => levelProgress(n).passed || (state.unlockAll && isLevelOpen(n)));
+}
+
+export function recordPractice() {
+  state.stats.practiceRounds += 1;
+  save();
 }
 
 // --- Klokkedeler ---

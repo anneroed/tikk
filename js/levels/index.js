@@ -3,6 +3,9 @@ import * as level2 from './level2.js';
 import * as level3 from './level3.js';
 import * as level4 from './level4.js';
 import * as level5 from './level5.js';
+import * as level6 from './level6.js';
+import * as level7 from './level7.js';
+import * as level8 from './level8.js';
 
 export const LEVELS = [
   { n: 1, title: 'Urskiven', subtitle: 'Tallene, strekene og viserne', content: level1 },
@@ -10,9 +13,9 @@ export const LEVELS = [
   { n: 3, title: 'Minutter', subtitle: 'Hvorfor 3 betyr 15 minutter', content: level3 },
   { n: 4, title: 'Halv og kvart', subtitle: '«Halv tre» er 2:30', content: level4 },
   { n: 5, title: 'Over og på', subtitle: 'Fem på halv, ti over halv', content: level5 },
-  { n: 6, title: 'Sekundviseren', subtitle: 'Den raskeste av dem' },
-  { n: 7, title: 'Digital klokke', subtitle: '24 timer og 14:30' },
-  { n: 8, title: 'Tid i hverdagen', subtitle: 'Hvor lenge er det til?' },
+  { n: 6, title: 'Sekundviseren', subtitle: 'Den raskeste av dem', content: level6 },
+  { n: 7, title: 'Digital klokke', subtitle: '24 timer og 14:30', content: level7 },
+  { n: 8, title: 'Tid i hverdagen', subtitle: 'Hvor lenge er det til?', content: level8 },
 ];
 
 export const levelByNumber = (n) => LEVELS.find((level) => level.n === Number(n));

@@ -209,6 +209,11 @@ export function createClock(options = {}) {
       };
       const quarter = n % 3 === 0;
       if (kind === 'romerske') group.append(text(ROMAN[n], n === 8 || n === 12 ? 11.5 : 13));
+      else if (kind === 'digitale') {
+        const node = text(String(n).padStart(2, '0'), 14, 700);
+        node.style.fontFamily = 'ui-monospace, "SF Mono", Menlo, monospace';
+        group.append(node);
+      }
       else if (kind === 'store') group.append(text(String(n), 22, 800));
       else if (kind === 'fire') group.append(quarter ? text(String(n), 21, 750) : svg('circle', { cx: x, cy: y, r: 2.6, class: 'num-dot' }));
       else if (kind === 'streker') {
@@ -243,6 +248,10 @@ export function createClock(options = {}) {
           [C, C - length], [C - width * 1.25, head], [C - half, head],
         ];
         node.append(svg('polygon', { points: points.map((p) => p.join(',')).join(' '), class: 'hand-body is-solid' }));
+      } else if (style === 'diamant') {
+        const wide = width * 0.95;
+        const shoulder = C - length * 0.3;
+        node.append(svg('polygon', { points: `${C},${C + tail} ${C + wide},${shoulder} ${C},${C - length} ${C - wide},${shoulder}`, class: 'hand-body is-solid' }));
       } else if (style === 'glod') {
         node.append(line(width * 0.9, { filter: `url(#${id}-glow)` }));
       } else {
@@ -282,8 +291,11 @@ export function createClock(options = {}) {
 
   function draw() {
     drawWedge();
-    hourHand.setAttribute('transform', `rotate(${hourAngle(time)} ${C} ${C})`);
-    minuteHand.setAttribute('transform', `rotate(${minuteAngle(time)} ${C} ${C})`);
+    // Med sekundviser hopper minuttviseren ett helt minutt når sekundviseren passerer 12, som på
+    // en stasjonsklokke. Da peker den alltid rett på minuttet, og 35:40 kan ikke leses som 36.
+    const shown = config.seconds && dragging !== 'hour' && dragging !== 'minute' ? Math.floor(time + 1e-9) : time;
+    hourHand.setAttribute('transform', `rotate(${hourAngle(shown)} ${C} ${C})`);
+    minuteHand.setAttribute('transform', `rotate(${minuteAngle(shown)} ${C} ${C})`);
     // Avrundes til hele sekunder, så sekundviseren hopper slik den gjør på en ekte klokke.
     secondHand.setAttribute('transform', `rotate(${mod(Math.round(time * 60), 60) * 6} ${C} ${C})`);
   }
@@ -308,6 +320,7 @@ export function createClock(options = {}) {
     root.classList.toggle('tap-hands-only', config.tappable === 'hands');
     hourHand.classList.toggle('can-drag', config.drag.includes('hour'));
     minuteHand.classList.toggle('can-drag', config.drag.includes('minute'));
+    secondHand.classList.toggle('can-drag', config.drag.includes('second'));
   }
 
   // Tikk ved hvert minutt (minuttviser) eller hvert femte minutt (timeviser), egen lyd ved hel time.
@@ -333,11 +346,14 @@ export function createClock(options = {}) {
     animation = null;
   }
 
-  /** Flytter viserne mykt. direction: 'shortest' eller 'forward'. */
+  /**
+   * Flytter viserne mykt. direction: 'shortest' (korteste vei på urskiven), 'forward' (med klokka)
+   * eller 'exact' (nøyaktig til den tiden, viktig når 02:30 og 14:30 er forskjellige).
+   */
   function animateTo(target, { duration = 900, direction = 'shortest', sound = false } = {}) {
     stopAnimation();
     const from = time;
-    const delta = direction === 'forward' ? target - from : shortestDelta(from, target);
+    const delta = direction === 'shortest' ? shortestDelta(from, target) : target - from;
     if (delta === 0) return Promise.resolve();
     return new Promise((resolve) => {
       const started = performance.now();
@@ -368,9 +384,12 @@ export function createClock(options = {}) {
     return { angle: mod((Math.atan2(dx, -dy) * 180) / Math.PI, 360), radius: Math.hypot(dx, dy) };
   }
 
+  const secondAngle = (t) => mod(t * 60, 60) * 6;
+
   function pickHand({ angle, radius }) {
     const candidates = config.drag;
     if (candidates.length === 1) return candidates[0];
+    if (candidates.includes('second') && angleDistance(angle, secondAngle(time)) < 15 && radius > 60) return 'second';
     const toHour = angleDistance(angle, hourAngle(time));
     const toMinute = angleDistance(angle, minuteAngle(time));
     // Står viserne nesten oppå hverandre, avgjør avstanden fra sentrum.
@@ -408,7 +427,13 @@ export function createClock(options = {}) {
     event.preventDefault();
     const { angle } = pointerInfo(event);
     let next = time;
-    if (dragging === 'minute') {
+    if (dragging === 'second') {
+      // En hel runde med sekundviseren er ett minutt.
+      let delta = angle / 6 - mod(time * 60, 60);
+      if (delta > 30) delta -= 60;
+      if (delta < -30) delta += 60;
+      next = time + delta / 60;
+    } else if (dragging === 'minute') {
       let delta = angle / 6 - mod(time, 60);
       if (delta > 30) delta -= 60;
       if (delta < -30) delta += 60;
@@ -419,16 +444,17 @@ export function createClock(options = {}) {
       if (delta < -360) delta += 720;
       next = time + delta;
     }
-    setTime(next, { silent: false, step: dragging === 'minute' ? 1 : 5 });
+    setTime(next, { silent: false, step: { second: 1 / 60, minute: 1, hour: 5 }[dragging] });
   }
 
   function onPointerUp() {
     if (!dragging) return;
     const released = dragging;
     dragging = null;
-    root.classList.remove('is-dragging', 'dragging-hour', 'dragging-minute');
-    const step = released === 'hour' && config.snapHour ? 60 : config.snapMinutes;
-    const snapped = Math.round(time / step) * step;
+    root.classList.remove('is-dragging', 'dragging-hour', 'dragging-minute', 'dragging-second');
+    const step = released === 'second' ? 1 / 60 : released === 'hour' && config.snapHour ? 60 : config.snapMinutes;
+    // Avrundes via hele sekunder, så 1/60-steg ikke gir flyttallsstøy.
+    const snapped = Math.round(Math.round(time * 60) / (step * 60)) * step;
     animateTo(snapped, { duration: 160 }).then(() => {
       time = snapped;
       config.onRelease?.(time, released);
