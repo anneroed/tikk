@@ -86,3 +86,4 @@ export function confirmDialog({ title, text, confirm = 'OK', cancel = 'Avbryt' }
 /** Ord for viserne med fast farge, så forklaringene peker på riktig viser. */
 export const HOUR = '<b class="t-hour">timeviseren</b>';
 export const MINUTE = '<b class="t-minute">minuttviseren</b>';
+export const SECOND = '<b class="t-second">sekundviseren</b>';

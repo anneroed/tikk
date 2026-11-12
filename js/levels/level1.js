@@ -1,9 +1,12 @@
 // Nivå 1: urskiven, tallene, strekene og viserne.
 import { capitalize } from '../time.js';
-import { HOUR, MINUTE } from '../ui.js';
+import { HOUR, MINUTE, SECOND } from '../ui.js';
 import { pick, shuffle } from './random.js';
 
 const wrap = (n) => ((n - 1 + 120) % 12) + 1;
+
+// 10:10 og 40 sekunder: alle tre viserne står godt fra hverandre.
+const WITH_SECONDS = 10 * 60 + 10 + 40 / 60;
 
 // «Med klokka» kommer tidlig, siden nesten alt annet bygger på hvilken vei viserne går.
 let lastDragTime = null;
@@ -44,7 +47,7 @@ export const intro = [
   },
   {
     title: 'Fire faste punkter',
-    text: '12 øverst, 3 til høyre, 6 nederst og 9 til venstre. Finner du disse fire, finner du alle de andre tallene.',
+    text: '12 står øverst og 6 står nederst. 3 og 9 står på hver sin side, midt mellom dem. Finner du disse fire, finner du alle de andre tallene.',
     clock: { time: 10 * 60 + 10, highlight: ['quarters'] },
   },
   {
@@ -53,9 +56,41 @@ export const intro = [
     clock: { time: 10 * 60 + 10, highlight: ['ticks'] },
   },
   {
-    title: 'To visere',
-    text: `Den korte, tykke er ${HOUR}. Den lange er ${MINUTE}. Lengden er det som skiller dem, ikke fargen, så se alltid etter hvilken som er kortest.`,
-    clock: { time: 10 * 60 + 10, highlight: ['hour', 'minute'] },
+    title: 'Tre visere',
+    text: `En klokke kan ha tre visere: ${HOUR}, ${MINUTE} og ${SECOND}. Navnene brukes i hele appen, så nå skal vi bli godt kjent med hver av dem.`,
+    clock: { time: WITH_SECONDS, seconds: true, running: true, highlight: ['hour', 'minute', 'second'] },
+  },
+  {
+    title: 'Timeviseren',
+    text: `${capitalize(HOUR)} er <b>den korte, tykke</b>. Den viser hvilken time det er. Den går så sakte at du nesten ikke ser at den beveger seg.`,
+    clock: { time: WITH_SECONDS, seconds: true, highlight: ['hour'] },
+    label: () => 'Kort og tykk = timer',
+  },
+  {
+    title: 'Minuttviseren',
+    text: `${capitalize(MINUTE)} er <b>den lange</b>. Den viser minuttene. Den bruker én time på å gå en hel runde.`,
+    clock: { time: WITH_SECONDS, seconds: true, highlight: ['minute'] },
+    label: () => 'Lang = minutter',
+  },
+  {
+    title: 'Sekundviseren',
+    text: `${capitalize(SECOND)} er <b>den tynne som går fort</b>. Den går en hel runde hvert minutt. Mange klokker har ikke sekundviser, så den bruker vi ikke før senere.`,
+    clock: { time: WITH_SECONDS, seconds: true, running: true, highlight: ['second'] },
+    label: () => 'Tynn og rask = sekunder',
+  },
+  {
+    title: 'Hvem er hvem?',
+    text: 'Trykk på viserne en etter en. Husk: jo kortere viser, jo saktere går den.',
+    clock: { time: WITH_SECONDS, seconds: true, running: true, tappable: 'hands' },
+    tapPrompt: 'Trykk på en viser',
+    onTap: (target) => {
+      if (target.kind !== 'hand') return 'Det er et tall. Prøv å treffe en viser.';
+      return {
+        hour: 'Timeviseren: kort og tykk, viser timene',
+        minute: 'Minuttviseren: lang, viser minuttene',
+        second: 'Sekundviseren: tynn og rask, viser sekundene',
+      }[target.hand];
+    },
   },
   {
     title: 'Prøv selv',
@@ -73,10 +108,10 @@ const tapNumber = ({ prompt, answer, explain }) => ({
   explain,
 });
 
-const asChoice = (rng, { prompt, options: [right, ...wrong], explain, time = 10 * 60 + 10 }) => ({
+const asChoice = (rng, { prompt, options: [right, ...wrong], explain, time = 10 * 60 + 10, seconds = false }) => ({
   type: 'choice',
   prompt,
-  clock: { time },
+  clock: { time, seconds },
   options: shuffle(rng, [{ label: right, correct: true }, ...wrong.map((label) => ({ label, correct: false }))]),
   explain,
 });
@@ -113,11 +148,11 @@ function direction(rng) {
 // 4. Faste punkter og fakta om urskiven.
 function aboutTheFace(rng) {
   if (rng() < 0.5) {
-    const [place, answer] = pick(rng, [['helt nederst', 6], ['helt til venstre', 9], ['helt til høyre', 3], ['helt øverst', 12]]);
+    const [place, answer] = pick(rng, [['nederst', 6], ['øverst', 12]]);
     return tapNumber({
-      prompt: `Trykk på tallet som står ${place}.`,
+      prompt: `Trykk på tallet som står ${place} på klokka.`,
       answer,
-      explain: `${answer} er et av de fire faste punktene: 12 øverst, 3 til høyre, 6 nederst og 9 til venstre.`,
+      explain: `${answer} er et av de fire faste punktene. 12 står alltid øverst og 6 alltid nederst.`,
     });
   }
   return asChoice(
@@ -132,6 +167,20 @@ function aboutTheFace(rng) {
         prompt: 'Hvor mange små streker er det rundt hele urskiven?',
         options: ['60', '12', '100', '24'],
         explain: 'Det er 60 streker, én for hvert minutt i en time.',
+      },
+      {
+        prompt: 'Hvilken viser går fortest?',
+        options: ['Sekundviseren', 'Minuttviseren', 'Timeviseren'],
+        explain: 'Sekundviseren, den tynne, går en hel runde hvert minutt. Timeviseren er saktest.',
+        time: WITH_SECONDS,
+        seconds: true,
+      },
+      {
+        prompt: 'Hvilken viser viser timene?',
+        options: ['Den korte, tykke', 'Den lange', 'Den tynne som går fort'],
+        explain: 'Timeviseren er den korte, tykke. Den lange er minuttviseren, og den tynne er sekundviseren.',
+        time: WITH_SECONDS,
+        seconds: true,
       },
       {
         prompt: 'Hva skiller timeviseren fra minuttviseren?',
@@ -155,15 +204,20 @@ function countSteps(rng) {
 }
 
 function tapHand(rng) {
-  const handName = pick(rng, ['hour', 'minute']);
-  // Viserne står langt fra hverandre så det er lett å treffe.
-  const time = pick(rng, [10 * 60 + 10, 2 * 60 + 40, 4 * 60 + 50, 8 * 60 + 15, 1 * 60 + 35]);
+  const handName = pick(rng, ['hour', 'minute', 'minute', 'hour', 'second']);
+  // Tidspunkter der alle tre viserne står godt fra hverandre, så det er lett å treffe.
+  const time = pick(rng, [WITH_SECONDS, 2 * 60 + 40 + 20 / 60, 4 * 60 + 50 + 30 / 60, 8 * 60 + 15, 1 * 60 + 35 + 50 / 60]);
+  const text = {
+    hour: ['Trykk på timeviseren.', `${capitalize(HOUR)} er den korte, tykke. Den viser timene.`],
+    minute: ['Trykk på minuttviseren.', `${capitalize(MINUTE)} er den lange. Den viser minuttene.`],
+    second: ['Trykk på sekundviseren.', `${capitalize(SECOND)} er den tynne som går fort. Den viser sekundene.`],
+  }[handName];
   return {
     type: 'tap',
-    prompt: handName === 'hour' ? 'Trykk på timeviseren.' : 'Trykk på minuttviseren.',
-    clock: { time },
+    prompt: text[0],
+    clock: { time, seconds: true },
     accept: { kind: 'hand', hand: handName },
-    explain: handName === 'hour' ? `${capitalize(HOUR)} er den korte.` : `${capitalize(MINUTE)} er den lange.`,
+    explain: text[1],
   };
 }
 

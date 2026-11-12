@@ -43,34 +43,54 @@ export function levelView({ params, onCleanup }) {
     clock.configure({
       drag: [],
       snapHour: false,
+      snapMinutes: 1,
       hands: true,
+      wedge: false,
+      minuteLabels: false,
+      seconds: false,
+      running: false,
+      tappable: Boolean(step.onTap),
       ...step.clock,
       onChange: (time) => {
         if (step.label) label.textContent = step.label(time);
       },
+      // Kort der hun trykker på klokka og får vite hva hun trykket på.
+      onTap: (target) => {
+        if (!step.onTap) return;
+        play('tap');
+        label.hidden = false;
+        label.textContent = step.onTap(target);
+        if (target.kind === 'hand') clock.highlight([target.hand]);
+      },
     });
     clock.highlight(step.clock.highlight ?? []);
     label.textContent = step.label ? step.label(clock.getTime()) : '';
-    label.hidden = !step.label;
+    label.hidden = !step.label && !step.onTap;
+    if (step.onTap) label.textContent = step.tapPrompt ?? '';
     hint.textContent = step.hint ?? '';
     hint.hidden = !step.hint;
 
+    // Knapper som flytter klokka: én avspillingsknapp (action) eller flere små valg (actions).
     extra.replaceChildren();
-    if (step.action) {
+    const actions = step.actions ?? (step.action ? [{ ...step.action, play: true }] : []);
+    extra.className = `step-extra ${actions.length > 1 ? 'is-chips' : ''}`;
+    for (const action of actions) {
       extra.append(
         h(
           'button',
           {
-            class: 'button button-soft',
+            class: actions.length > 1 ? 'chip' : 'button button-soft',
             type: 'button',
             onclick: async (event) => {
-              event.currentTarget.disabled = true;
-              await step.action.run(clock);
-              event.currentTarget.disabled = false;
+              const button = event.currentTarget;
+              button.disabled = true;
+              play('tap');
+              await action.run(clock);
+              button.disabled = false;
             },
           },
-          icon('play'),
-          step.action.label,
+          action.play ? icon('play') : null,
+          action.label,
         ),
       );
     }

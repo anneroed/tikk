@@ -16,6 +16,7 @@ export const DEFAULT_DESIGN = {
   number: '#f2f4f7',
   hour: '#ffb547',
   minute: '#62d6ff',
+  second: '#ff5d73',
   cap: '#f2f4f7',
 };
 
@@ -44,8 +45,12 @@ const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
  * @param {string[]} options.drag          hvilke visere som kan dras: 'hour', 'minute'
  * @param {boolean} options.snapHour        timeviseren slippes alltid på hel time
  * @param {number} options.snapMinutes      minuttene rundes til nærmeste (1, 5 …) når viseren slippes
- * @param {boolean} options.tappable        tall og visere kan trykkes på (onTap)
+ * @param {boolean|'hands'} options.tappable tall og visere kan trykkes på (onTap); 'hands' = bare viserne
  * @param {boolean} options.hands           vis viserne (false = tom urskive)
+ * @param {boolean} options.wedge           kakestykke fra 12 til minuttviseren: hvor mye av timen som har gått
+ * @param {boolean} options.minuteLabels    små minuttall (5, 10, 15 …) utenfor urskiven
+ * @param {boolean} options.seconds         vis sekundviseren (tiden kan da ha desimaler: 1/60 per sekund)
+ * @param {boolean} options.running         klokka går av seg selv, ett sekund om gangen
  */
 export function createClock(options = {}) {
   let config = {
@@ -55,6 +60,10 @@ export function createClock(options = {}) {
     snapMinutes: 1,
     tappable: false,
     hands: true,
+    wedge: false,
+    minuteLabels: false,
+    seconds: false,
+    running: false,
     design: DEFAULT_DESIGN,
     onChange: null,
     onRelease: null,
@@ -64,11 +73,22 @@ export function createClock(options = {}) {
   let time = config.time;
   let dragging = null;
   let animation = null;
+  let runner = null;
 
   const root = svg('svg', { viewBox: '0 0 200 200', class: 'clock', role: 'img' });
 
   // Urskive
   const face = svg('g', { 'data-part': 'face' }, svg('circle', { cx: C, cy: C, r: 97, class: 'clock-face' }));
+
+  const wedge = svg('path', { class: 'clock-wedge', 'data-part': 'wedge' });
+
+  const minuteLabels = svg('g', { 'data-part': 'minute-labels', class: 'minute-labels' });
+  for (let n = 1; n <= 12; n += 1) {
+    const [x, y] = polar(n * 30, 108);
+    minuteLabels.append(
+      svg('text', { x, y, class: 'minute-label', 'text-anchor': 'middle', 'dominant-baseline': 'central' }, String(n === 12 ? 0 : n * 5)),
+    );
+  }
 
   const ticks = svg('g', { 'data-part': 'ticks' });
   for (let i = 0; i < 60; i += 1) {
@@ -102,25 +122,52 @@ export function createClock(options = {}) {
     );
   const hourHand = hand('hour', 48, 8, 10);
   const minuteHand = hand('minute', 76, 5, 14);
+  const secondHand = hand('second', 86, 1.6, 22);
   const cap = svg('g', { 'data-part': 'cap' }, svg('circle', { cx: C, cy: C, r: 6, class: 'clock-cap' }));
-  const handsLayer = svg('g', { class: 'hands' }, hourHand, minuteHand, cap);
+  const handsLayer = svg('g', { class: 'hands' }, hourHand, minuteHand, secondHand, cap);
 
-  root.append(face, ticks, numbers, handsLayer);
+  root.append(face, wedge, ticks, numbers, minuteLabels, handsLayer);
 
   function applyDesign(design) {
     for (const [name, value] of Object.entries(design)) root.style.setProperty(`--clock-${name}`, value);
   }
 
+  function drawWedge() {
+    const minutes = mod(time, 60);
+    if (!config.wedge || minutes < 0.01 || minutes > 59.99) {
+      wedge.setAttribute('d', '');
+      return;
+    }
+    const [x, y] = polar(minutes * 6, 92);
+    wedge.setAttribute('d', `M${C} ${C}L${C} ${C - 92}A92 92 0 ${minutes > 30 ? 1 : 0} 1 ${x} ${y}Z`);
+  }
+
   function draw() {
+    drawWedge();
     hourHand.setAttribute('transform', `rotate(${hourAngle(time)} ${C} ${C})`);
     minuteHand.setAttribute('transform', `rotate(${minuteAngle(time)} ${C} ${C})`);
+    // Avrundes til hele sekunder, så sekundviseren hopper slik den gjør på en ekte klokke.
+    secondHand.setAttribute('transform', `rotate(${mod(Math.round(time * 60), 60) * 6} ${C} ${C})`);
   }
 
   function applyConfig() {
     applyDesign(config.design);
     handsLayer.style.display = config.hands ? '' : 'none';
+    minuteLabels.style.display = config.minuteLabels ? '' : 'none';
+    secondHand.style.display = config.seconds ? '' : 'none';
+    clearInterval(runner);
+    runner = config.running
+      ? setInterval(() => {
+          setTime(time + 1 / 60);
+          play('tick');
+        }, 1000)
+      : null;
+    // Minuttallene står utenfor urskiven, så da trengs litt mer plass rundt.
+    root.setAttribute('viewBox', config.minuteLabels ? '-16 -16 232 232' : '0 0 200 200');
+    drawWedge();
     root.classList.toggle('is-draggable', config.drag.length > 0);
-    root.classList.toggle('is-tappable', config.tappable);
+    root.classList.toggle('is-tappable', Boolean(config.tappable));
+    root.classList.toggle('tap-hands-only', config.tappable === 'hands');
     hourHand.classList.toggle('can-drag', config.drag.includes('hour'));
     minuteHand.classList.toggle('can-drag', config.drag.includes('minute'));
   }
@@ -176,9 +223,10 @@ export function createClock(options = {}) {
 
   function pointerInfo(event) {
     const rect = root.getBoundingClientRect();
-    const scale = 200 / rect.width;
-    const dx = (event.clientX - rect.left) * scale - C;
-    const dy = (event.clientY - rect.top) * scale - C;
+    const box = root.viewBox.baseVal;
+    const scale = box.width / rect.width;
+    const dx = (event.clientX - rect.left) * scale + box.x - C;
+    const dy = (event.clientY - rect.top) * scale + box.y - C;
     return { angle: mod((Math.atan2(dx, -dy) * 180) / Math.PI, 360), radius: Math.hypot(dx, dy) };
   }
 
@@ -195,7 +243,7 @@ export function createClock(options = {}) {
   function onPointerDown(event) {
     if (config.tappable) {
       const target = event.target.closest('[data-tap]');
-      if (target) {
+      if (target && !(config.tappable === 'hands' && target.dataset.tap.startsWith('num:'))) {
         event.preventDefault();
         const [kind, value] = target.dataset.tap.split(':');
         config.onTap?.(kind === 'num' ? { kind, n: Number(value) } : { kind, hand: value });
@@ -288,8 +336,10 @@ export function createClock(options = {}) {
         else if (part === 'quarters') [12, 3, 6, 9].forEach((n) => mark(numberNodes.get(n)));
         else if (part.startsWith('num:')) mark(numberNodes.get(Number(part.slice(4))));
         else if (part === 'ticks') mark(ticks);
+        else if (part === 'minute-labels') mark(minuteLabels);
         else if (part === 'hour') mark(hourHand);
         else if (part === 'minute') mark(minuteHand);
+        else if (part === 'second') mark(secondHand);
       }
     },
     /** Setter et merke rundt et tall: 'correct', 'wrong', 'pick' eller null. */
@@ -299,7 +349,7 @@ export function createClock(options = {}) {
       if (kind) node?.classList.add(`mark-${kind}`);
     },
     markHand(name, kind) {
-      const node = name === 'hour' ? hourHand : minuteHand;
+      const node = { hour: hourHand, minute: minuteHand, second: secondHand }[name];
       node.classList.remove('mark-correct', 'mark-wrong');
       if (kind) node.classList.add(`mark-${kind}`);
     },
@@ -308,6 +358,9 @@ export function createClock(options = {}) {
         node.classList.remove('mark-correct', 'mark-wrong', 'mark-pick'),
       );
     },
-    destroy: stopAnimation,
+    destroy() {
+      stopAnimation();
+      clearInterval(runner);
+    },
   };
 }

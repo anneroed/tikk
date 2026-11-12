@@ -31,5 +31,10 @@ Alle skjermer unntatt Hjem har tilbakeknapp. Midt i en runde spør appen før de
    sjeldne deler for innsats (rekker, flere dager), verksted. Valgt klokke brukes overalt.
 4. **Nivå 6–8: sekundviser, digital og 24 timer, tid i hverdagen**
    Hverdagsoppgaver med regning mellom to klokkeslett.
+
+   *24-timersklokka:* en analog klokke viser bare 12 timer, så frem til nivå 7 skrives tider som 1–12
+   («2:30»). I nivå 7 får klokka et lite dag/natt-merke (sol, ettermiddag, måne) og en situasjon
+   («Du spiser middag»), og svaret skrives digitalt med 24 timer: halv tre om ettermiddagen = 14:30.
+   Regelen læres som «legg til 12 etter klokka tolv på dagen».
 5. **Finpuss og publisering**
    Repetisjon av fullførte nivåer, ikoner, publisering (GitHub Pages som de andre appene).

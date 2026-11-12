@@ -5,12 +5,15 @@ import { LEVELS, levelByNumber, isBuilt } from '../levels/index.js';
 import { goBack, navigate, setLeaveGuard } from '../router.js';
 import { play } from '../sound.js';
 import { PASS_SCORE, isLevelOpen, recordAnswer, recordRound, getState } from '../store.js';
-import { sameClockTime } from '../time.js';
+import { minuteOf, mod, sameClockTime } from '../time.js';
 import { backButton, confirmDialog, h, icon } from '../ui.js';
 
 const PRAISE = ['Riktig!', 'Helt riktig!', 'Stemmer!', 'Bra!', 'Sånn ja!'];
 const NOT_QUITE = ['Ikke helt', 'Nesten', 'Ikke denne gangen'];
 const randomOf = (list) => list[Math.floor(Math.random() * list.length)];
+
+/** Klokka nullstilles til dette før hvert spørsmål, så ingenting henger igjen fra forrige. */
+const BASE_CLOCK = { drag: [], tappable: false, hands: true, wedge: false, minuteLabels: false, seconds: false, running: false, snapHour: false, snapMinutes: 1 };
 
 export function roundView({ params, onCleanup }) {
   const level = levelByNumber(params.n);
@@ -25,6 +28,7 @@ export function roundView({ params, onCleanup }) {
   let answered = false;
 
   const clock = createClock();
+  const stage = h('div', { class: 'clock-stage' }, clock.el);
   const progress = h('div', { class: 'round-progress' }, questions.map(() => h('span')));
   const prompt = h('h1', { class: 'round-prompt', 'aria-live': 'polite' });
   const hint = h('p', { class: 'clock-hint' });
@@ -35,7 +39,7 @@ export function roundView({ params, onCleanup }) {
     'main',
     { class: 'content round-content' },
     prompt,
-    h('div', { class: 'clock-stage' }, clock.el),
+    stage,
     hint,
     answers,
     feedback,
@@ -77,13 +81,20 @@ export function roundView({ params, onCleanup }) {
     requestAnimationFrame(() => feedback.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
   }
 
+  /** Svaralternativ med egen lille klokke (koble analog og digital, «hvilken er feil?»). */
+  function optionContent(option) {
+    if (option.time === undefined) return option.label;
+    const mini = createClock({ ...BASE_CLOCK, time: option.time });
+    return [h('span', { class: 'option-clock' }, mini.el), option.label ? h('span', { class: 'option-label' }, option.label) : null];
+  }
+
   function renderChoice(question) {
-    clock.configure({ time: question.clock.time, hands: question.clock.hands ?? true, drag: [], tappable: false });
+    if (question.clock) clock.configure({ ...BASE_CLOCK, ...question.clock });
     const buttons = question.options.map((option) =>
       h(
         'button',
         {
-          class: 'option',
+          class: option.time === undefined ? 'option' : 'option option-with-clock',
           type: 'button',
           onclick: () => {
             if (answered) return;
@@ -95,19 +106,19 @@ export function roundView({ params, onCleanup }) {
             showFeedback(option.correct, question);
           },
         },
-        option.label,
+        optionContent(option),
       ),
     );
-    answers.className = `round-answers ${question.options.some((o) => o.label.length > 16) ? 'is-list' : 'is-grid'}`;
+    const long = question.options.some((o) => o.time === undefined && o.label.length > 16);
+    answers.className = `round-answers ${long ? 'is-list' : 'is-grid'}`;
     answers.replaceChildren(...buttons);
   }
 
   function renderTap(question) {
     const { accept } = question;
     clock.configure({
-      time: question.clock.time,
-      hands: question.clock.hands ?? true,
-      drag: [],
+      ...BASE_CLOCK,
+      ...question.clock,
       tappable: true,
       onTap: (target) => {
         if (answered) return;
@@ -127,7 +138,16 @@ export function roundView({ params, onCleanup }) {
   }
 
   function renderSet(question) {
-    clock.configure({ time: question.start, hands: true, tappable: false, snapHour: false, snapMinutes: 1, ...question.clock });
+    clock.configure({ ...BASE_CLOCK, ...question.clock, time: question.start });
+    // check: 'minute' betyr at bare minuttviseren teller, uansett time.
+    const isRight = (time) =>
+      question.check === 'minute' ? minuteOf(Math.round(time)) === minuteOf(question.target) : sameClockTime(time, question.target);
+    const answerTime = (time) => {
+      if (question.check !== 'minute') return question.target;
+      let delta = mod(minuteOf(question.target) - minuteOf(Math.round(time)), 60);
+      if (delta > 30) delta -= 60;
+      return Math.round(time) + delta;
+    };
     const check = h(
       'button',
       {
@@ -138,12 +158,12 @@ export function roundView({ params, onCleanup }) {
           answered = true;
           check.disabled = true;
           clock.configure({ drag: [] });
-          const correct = sameClockTime(clock.getTime(), question.target);
+          const correct = isRight(clock.getTime());
           if (!correct) {
             // Vis riktig svar ved å flytte viserne dit de skal.
             play('wrong');
             await new Promise((resolve) => setTimeout(resolve, 350));
-            await clock.animateTo(question.target, { duration: 1200 });
+            await clock.animateTo(answerTime(clock.getTime()), { duration: 1200 });
             clock.highlight(['hour', 'minute']);
           }
           check.remove();
@@ -167,6 +187,7 @@ export function roundView({ params, onCleanup }) {
     prompt.textContent = question.prompt;
     hint.textContent = question.hint ?? '';
     hint.hidden = !question.hint;
+    stage.hidden = !question.clock && question.type === 'choice';
     if (question.type === 'choice') renderChoice(question);
     if (question.type === 'tap') renderTap(question);
     if (question.type === 'set') renderSet(question);

@@ -39,14 +39,13 @@ export const intro = [
   },
   {
     title: 'Mellom to tall',
-    text: `Står ${HOUR} mellom to tall, har timen begynt, men neste time har ikke kommet ennå. Her er klokka litt over fire, ikke fem. Det er alltid det minste tallet (det den har passert) som gjelder.`,
+    text: `Står ${HOUR} mellom to tall, har timen begynt, men neste time har ikke kommet ennå. Her er klokka litt over fire, ikke fem. Det er alltid tallet den har passert som gjelder.`,
     clock: { time: atHour(4, 25), highlight: ['hour', 'num:4', 'num:5'] },
     label: () => 'Litt over fire',
   },
 ];
 
-function readWholeHour(rng) {
-  const hour = pick(rng, HOURS);
+function readWholeHour(rng, hour) {
   const distractors = new Set([nextHour(hour), hour === 1 ? 12 : hour - 1, 12, mod(12 - hour, 12) || 12, nextHour(nextHour(hour))]);
   distractors.delete(hour);
   const wrong = shuffle(rng, [...distractors]).slice(0, 3);
@@ -65,8 +64,7 @@ function readWholeHour(rng) {
   };
 }
 
-function setWholeHour(rng) {
-  const hour = pick(rng, HOURS);
+function setWholeHour(rng, hour) {
   const start = pick(rng, HOURS.filter((h) => h !== hour && h !== nextHour(hour)));
   return {
     type: 'set',
@@ -79,8 +77,7 @@ function setWholeHour(rng) {
   };
 }
 
-function betweenHours(rng) {
-  const hour = pick(rng, HOURS);
+function betweenHours(rng, hour) {
   const minute = pick(rng, [10, 15, 20, 25, 35, 40]);
   const after = nextHour(hour);
   return {
@@ -99,5 +96,7 @@ function betweenHours(rng) {
 
 /** Fra lett til vanskeligere: les, still, og til slutt «mellom to tall». */
 export function makeRound(rng = Math.random) {
-  return [readWholeHour(rng), setWholeHour(rng), readWholeHour(rng), setWholeHour(rng), betweenHours(rng)];
+  // Fem ulike timer, så ingen spørsmål i samme runde blir like.
+  const [a, b, c, d, e] = shuffle(rng, HOURS);
+  return [readWholeHour(rng, a), setWholeHour(rng, b), readWholeHour(rng, c), setWholeHour(rng, d), betweenHours(rng, e)];
 }

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { LEVELS } from '../js/levels/index.js';
 import { seeded } from '../js/levels/random.js';
-import { sameClockTime } from '../js/time.js';
+import { mod, sameClockTime, timePhrase } from '../js/time.js';
 
 const built = LEVELS.filter((level) => level.content);
 
@@ -15,15 +15,18 @@ test('hver runde har 5 gyldige spørsmål med nøyaktig ett riktig svar', () => 
         assert.ok(question.prompt && question.explain, `nivå ${level.n}: mangler tekst`);
         if (question.type === 'choice') {
           assert.equal(question.options.filter((o) => o.correct).length, 1, question.prompt);
-          const labels = question.options.map((o) => o.label);
-          assert.equal(new Set(labels).size, labels.length, `like svaralternativer: ${labels}`);
-          assert.ok(question.options.length >= 3);
+          // Både teksten og klokka må skille alternativene fra hverandre.
+          const labels = question.options.map((o) => o.label).filter(Boolean);
+          const times = question.options.filter((o) => o.time !== undefined).map((o) => mod(o.time, 720));
+          assert.equal(new Set(labels).size, labels.length, `like tekster: ${labels} (${question.prompt})`);
+          assert.equal(new Set(times).size, times.length, `like klokker (${question.prompt})`);
+          assert.ok(question.options.length >= 3, question.prompt);
         } else if (question.type === 'set') {
           assert.ok(!sameClockTime(question.start, question.target), 'klokka står allerede riktig');
         } else if (question.type === 'tap') {
           const { accept } = question;
           if (accept.kind === 'num') assert.ok(accept.n >= 1 && accept.n <= 12, `${question.prompt} → ${accept.n}`);
-          else assert.ok(['hour', 'minute'].includes(accept.hand));
+          else assert.ok(['hour', 'minute', 'second'].includes(accept.hand));
         } else {
           assert.fail(`ukjent type ${question.type}`);
         }
@@ -45,4 +48,44 @@ test('nivå 1 bruker ikke kvart eller halv, og forklarer «med klokka» tidlig',
     }
   }
   assert.ok(level1.intro.findIndex((step) => step.title === 'Med klokka') <= 1);
+});
+
+test('«hvilken er feil?» har nøyaktig én klokke der teksten ikke stemmer', async () => {
+  const { short } = await import('../js/levels/common.js');
+  for (const n of [4, 5]) {
+    const level = LEVELS.find((l) => l.n === n);
+    for (let seed = 1; seed <= 300; seed += 1) {
+      for (const question of level.content.makeRound(seeded(seed))) {
+        if (question.prompt !== 'Én av klokkene har feil tekst. Hvilken?') continue;
+        assert.equal(question.options.length, 4);
+        for (const option of question.options) {
+          const truthful = option.label.toLowerCase() === timePhrase(option.time) || option.label === short(option.time);
+          assert.equal(truthful, !option.correct, `${option.label} på ${short(option.time)}`);
+        }
+      }
+    }
+  }
+});
+
+test('svarene i nivå 3–5 stemmer med klokka', () => {
+  for (const n of [3, 4, 5]) {
+    const level = LEVELS.find((l) => l.n === n);
+    for (let seed = 1; seed <= 200; seed += 1) {
+      for (const question of level.content.makeRound(seeded(seed))) {
+        if (question.type !== 'choice' || !question.clock || question.options[0].time !== undefined) continue;
+        if (!/^Hva er klokka/.test(question.prompt) && !/Hva sier vi/.test(question.prompt)) continue;
+        const right = question.options.find((o) => o.correct).label.toLowerCase();
+        assert.ok(right.includes(':') || right === timePhrase(question.clock.time), `${right} ≠ ${timePhrase(question.clock.time)}`);
+      }
+    }
+  }
+});
+
+test('ingen like spørsmål i samme runde', () => {
+  for (const level of built) {
+    for (let seed = 1; seed <= 300; seed += 1) {
+      const keys = level.content.makeRound(seeded(seed)).map((q) => `${q.prompt}|${q.clock?.time ?? ''}|${q.target ?? ''}`);
+      assert.equal(new Set(keys).size, keys.length, `nivå ${level.n}: ${keys.join(' ; ')}`);
+    }
+  }
 });
