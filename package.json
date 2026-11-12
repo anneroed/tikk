@@ -1,0 +1,11 @@
+{
+  "name": "tikk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "PWA som lærer barn å lese klokka",
+  "scripts": {
+    "start": "python3 -m http.server 4174",
+    "test": "node --test"
+  }
+}
