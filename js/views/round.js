@@ -4,7 +4,9 @@ import { createClock } from '../clock.js';
 import { LEVELS, levelByNumber, isBuilt } from '../levels/index.js';
 import { goBack, navigate, setLeaveGuard } from '../router.js';
 import { play } from '../sound.js';
-import { PASS_SCORE, isLevelOpen, recordAnswer, recordRound, getState } from '../store.js';
+import { MIN_PACK_SCORE, earnedParts, packPool, pickPack } from '../parts.js';
+import { PASS_SCORE, getState, grantParts, isLevelOpen, ownedIds, recordAnswer, recordRound } from '../store.js';
+import { openPackages } from './package.js';
 import { minuteOf, mod, sameClockTime } from '../time.js';
 import { backButton, confirmDialog, h, icon } from '../ui.js';
 
@@ -13,7 +15,7 @@ const NOT_QUITE = ['Ikke helt', 'Nesten', 'Ikke denne gangen'];
 const randomOf = (list) => list[Math.floor(Math.random() * list.length)];
 
 /** Klokka nullstilles til dette før hvert spørsmål, så ingenting henger igjen fra forrige. */
-const BASE_CLOCK = { drag: [], tappable: false, hands: true, wedge: false, minuteLabels: false, seconds: false, running: false, snapHour: false, snapMinutes: 1 };
+const BASE_CLOCK = { drag: [], tappable: false, hands: true, wedge: false, minuteLabels: false, seconds: false, running: false, snapHour: false, snapMinutes: 1, numerals: null };
 
 export function roundView({ params, onCleanup }) {
   const level = levelByNumber(params.n);
@@ -119,6 +121,8 @@ export function roundView({ params, onCleanup }) {
     clock.configure({
       ...BASE_CLOCK,
       ...question.clock,
+      // Skal hun trykke på tall, må tallene synes, uansett hvilken tallstil hun har valgt.
+      numerals: 'arabiske',
       tappable: true,
       onTap: (target) => {
         if (answered) return;
@@ -211,6 +215,17 @@ export function roundView({ params, onCleanup }) {
     const nextLevel = LEVELS.find((l) => l.n === level.n + 1);
     play(result.passed ? 'complete' : 'tap');
 
+    // Belønninger: en pakke for runden, pluss deler for nye nivåer og innsats (rekker, dager).
+    const pack = pickPack(ownedIds(), level.n, score);
+    grantParts([...(pack ? [pack] : []), ...earnedParts(getState())]);
+    let packNote = null;
+    if (score < MIN_PACK_SCORE) packNote = `Få minst ${MIN_PACK_SCORE} riktige for å få en pakke.`;
+    else if (!pack && !packPool(ownedIds(), level.n).length) {
+      packNote = nextLevel && isBuilt(nextLevel)
+        ? `Du har alle pakkedelene fra nivå 1–${level.n}. Nivå ${nextLevel.n} har nye!`
+        : `Du har alle pakkedelene fra nivå 1–${level.n}.`;
+    }
+
     let message;
     if (result.newlyPassed && nextLevel) {
       message = isBuilt(nextLevel)
@@ -229,6 +244,7 @@ export function roundView({ params, onCleanup }) {
         h('div', { class: `summary-score ${result.passed ? 'is-passed' : ''}` }, h('span', {}, String(score)), h('small', {}, `av ${questions.length}`)),
         h('h1', {}, result.passed ? (score === questions.length ? 'Alle riktige!' : 'Godt jobbet!') : 'Runden er ferdig'),
         h('p', { class: 'muted' }, message),
+        packCard(packNote),
         h(
           'div',
           { class: 'summary-actions' },
@@ -241,6 +257,26 @@ export function roundView({ params, onCleanup }) {
       ),
     );
     progress.replaceChildren();
+  }
+
+  /** Kort med uåpnede pakker, eller en liten beskjed om hvorfor det ikke ble noen pakke. */
+  function packCard(note) {
+    const count = getState().pending.length;
+    if (!count) return note ? h('p', { class: 'pack-note' }, note) : null;
+    const card = h(
+      'button',
+      {
+        class: 'pack-card',
+        type: 'button',
+        onclick: async () => {
+          await openPackages();
+          card.replaceWith(h('p', { class: 'pack-note' }, 'Delene ligger i samlingen din. Bytt klokke i verkstedet.'));
+        },
+      },
+      h('span', { class: 'pack-card-gift' }),
+      h('span', {}, h('strong', {}, count === 1 ? 'Du fikk en pakke!' : `Du fikk ${count} pakker!`), h('small', {}, 'Trykk for å åpne')),
+    );
+    return card;
   }
 
   updateStreak();

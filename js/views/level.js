@@ -49,6 +49,9 @@ export function levelView({ params, onCleanup }) {
       minuteLabels: false,
       seconds: false,
       running: false,
+      tickSound: false,
+      // Forklaringene snakker om «tallet 3» osv., så her vises alltid vanlige tall.
+      numerals: 'arabiske',
       tappable: Boolean(step.onTap),
       ...step.clock,
       onChange: (time) => {

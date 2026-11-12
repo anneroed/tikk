@@ -1,5 +1,5 @@
 // Øk VERSION ved hver publisering, ellers får ikke installerte apper den nye koden.
-const VERSION = '3';
+const VERSION = '5';
 const CACHE = `tikk-${VERSION}`;
 
 const PRECACHE = [
@@ -28,6 +28,10 @@ const PRECACHE = [
   'js/views/round.js',
   'js/views/settings.js',
   'js/views/install.js',
+  'js/views/package.js',
+  'js/views/collection.js',
+  'js/views/workshop.js',
+  'js/parts.js',
   'icons/icon-180.png',
   'icons/icon-192.png',
   'icons/icon-512.png',

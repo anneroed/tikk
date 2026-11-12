@@ -39,7 +39,7 @@ test('forklaringene har minst tre kort', () => {
   for (const level of built) assert.ok(level.content.intro.length >= 3);
 });
 
-test('nivå 1 bruker ikke kvart eller halv, og forklarer «med klokka» tidlig', async () => {
+test('nivå 1 bruker ikke kvart eller halv, og forklarer viserne før de brukes', async () => {
   const level1 = await import('../js/levels/level1.js');
   for (let seed = 1; seed <= 200; seed += 1) {
     for (const question of level1.makeRound(seeded(seed))) {
@@ -47,7 +47,13 @@ test('nivå 1 bruker ikke kvart eller halv, og forklarer «med klokka» tidlig',
       assert.doesNotMatch(text, /kvart|halv/i, question.prompt);
     }
   }
-  assert.ok(level1.intro.findIndex((step) => step.title === 'Med klokka') <= 1);
+  // Viserne skal ha fått navn før noe kort ber henne gjøre noe med dem.
+  const titles = level1.intro.map((step) => step.title);
+  const named = titles.indexOf('Tre visere');
+  for (const [index, step] of level1.intro.entries()) {
+    if (/(time|minutt|sekund)viseren/i.test(step.text)) assert.ok(index >= named, `«${step.title}» nevner en viser før de er forklart`);
+  }
+  assert.ok(titles.indexOf('Med klokka') < titles.indexOf('Fire faste punkter'));
 });
 
 test('«hvilken er feil?» har nøyaktig én klokke der teksten ikke stemmer', async () => {

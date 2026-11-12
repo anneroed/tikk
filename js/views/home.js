@@ -2,7 +2,9 @@ import { createClock } from '../clock.js';
 import { LEVELS, isBuilt } from '../levels/index.js';
 import { navigate } from '../router.js';
 import { play } from '../sound.js';
-import { getState, isLevelOpen, levelProgress, setSound, PASS_SCORE } from '../store.js';
+import { PARTS } from '../parts.js';
+import { getState, isLevelOpen, isOwned, levelProgress, setSound, PASS_SCORE } from '../store.js';
+import { openPackages } from './package.js';
 import { capitalize, digital, nowInMinutes, timePhrase } from '../time.js';
 import { h, icon } from '../ui.js';
 
@@ -50,6 +52,25 @@ function nowCard(onCleanup) {
     },
     h('div', { class: 'now-clock' }, clock.el),
     answer,
+  );
+}
+
+/** Uåpnede pakker venter øverst, så de ikke blir glemt om hun gikk ut før hun åpnet dem. */
+function pendingCard() {
+  const count = getState().pending.length;
+  if (!count) return null;
+  return h(
+    'button',
+    {
+      class: 'pack-card home-pack',
+      type: 'button',
+      onclick: async () => {
+        await openPackages();
+        navigate('/', { replace: true });
+      },
+    },
+    h('span', { class: 'pack-card-gift' }),
+    h('span', {}, h('strong', {}, count === 1 ? 'En uåpnet pakke' : `${count} uåpnede pakker`), h('small', {}, 'Trykk for å åpne')),
   );
 }
 
@@ -103,6 +124,7 @@ export function homeView({ onCleanup }) {
     h(
       'main',
       { class: 'content' },
+      pendingCard(),
       nowCard(onCleanup),
       h(
         'div',
@@ -126,8 +148,14 @@ export function homeView({ onCleanup }) {
       h(
         'div',
         { class: 'tile-row' },
-        h('div', { class: 'tile is-soon' }, icon('wrench'), h('strong', {}, 'Klokkeverksted'), h('small', {}, 'Kommer')),
-        h('div', { class: 'tile is-soon' }, icon('grid'), h('strong', {}, 'Samling'), h('small', {}, 'Kommer')),
+        h('button', { class: 'tile', type: 'button', onclick: () => navigate('/verksted') }, icon('wrench'), h('strong', {}, 'Klokkeverksted'), h('small', {}, 'Lag din egen klokke')),
+        h(
+          'button',
+          { class: 'tile', type: 'button', onclick: () => navigate('/samling') },
+          icon('grid'),
+          h('strong', {}, 'Samling'),
+          h('small', {}, `${PARTS.filter((part) => isOwned(part.id)).length} av ${PARTS.length} deler`),
+        ),
       ),
     ),
   );

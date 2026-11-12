@@ -1,24 +1,17 @@
 // Interaktiv analog klokke i SVG.
 // Tiden er ett tall: minutter. Begge viserne regnes ut fra det, så når minuttviseren
 // dras en hel runde, flytter timeviseren seg nøyaktig én time – akkurat som en ekte klokke.
+import { resolveDesign } from './parts.js';
 import { play } from './sound.js';
+import { currentDesign } from './store.js';
 import { hourAngle, minuteAngle, mod, shortestDelta } from './time.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 const C = 100; // sentrum i viewBox 0 0 200 200
-
-/** Standardklokka. Fase 3 legger til flere urskiver, visere og tallstiler. */
-export const DEFAULT_DESIGN = {
-  face: '#15181e',
-  ring: '#2b313b',
-  tick: '#4a525f',
-  tickMajor: '#c4cad3',
-  number: '#f2f4f7',
-  hour: '#ffb547',
-  minute: '#62d6ff',
-  second: '#ff5d73',
-  cap: '#f2f4f7',
-};
+const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+let uid = 0;
+// Filtre måles i klokkas koordinater. Ellers forsvinner en loddrett viser (bredde 0) helt.
+const WHOLE_CLOCK = { filterUnits: 'userSpaceOnUse', x: -20, y: -20, width: 240, height: 240 };
 
 function svg(tag, attributes = {}, ...children) {
   const element = document.createElementNS(NS, tag);
@@ -51,6 +44,8 @@ const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
  * @param {boolean} options.minuteLabels    små minuttall (5, 10, 15 …) utenfor urskiven
  * @param {boolean} options.seconds         vis sekundviseren (tiden kan da ha desimaler: 1/60 per sekund)
  * @param {boolean} options.running         klokka går av seg selv, ett sekund om gangen
+ * @param {object} options.design            del-id-er som overstyrer hennes valgte klokke, f.eks. { face: 'neon' }
+ * @param {string} options.numerals          tvinger en tallstil, f.eks. 'arabiske' når hun skal trykke på tall
  */
 export function createClock(options = {}) {
   let config = {
@@ -64,7 +59,9 @@ export function createClock(options = {}) {
     minuteLabels: false,
     seconds: false,
     running: false,
-    design: DEFAULT_DESIGN,
+    tickSound: false,
+    design: null,
+    numerals: null,
     onChange: null,
     onRelease: null,
     onTap: null,
@@ -74,11 +71,26 @@ export function createClock(options = {}) {
   let dragging = null;
   let animation = null;
   let runner = null;
+  let decorKey = '';
+  const id = `clock${(uid += 1)}`;
 
   const root = svg('svg', { viewBox: '0 0 200 200', class: 'clock', role: 'img' });
 
-  // Urskive
-  const face = svg('g', { 'data-part': 'face' }, svg('circle', { cx: C, cy: C, r: 97, class: 'clock-face' }));
+  // Felles effekter: skygge under viserne og glød for neon.
+  const defs = svg(
+    'defs',
+    {},
+    svg('filter', { id: `${id}-shadow`, ...WHOLE_CLOCK }, svg('feDropShadow', { dx: 0, dy: 1, stdDeviation: 1.2, 'flood-opacity': 0.45 })),
+    svg(
+      'filter',
+      { id: `${id}-glow`, ...WHOLE_CLOCK },
+      svg('feGaussianBlur', { stdDeviation: 2.2, result: 'blur' }),
+      svg('feMerge', {}, svg('feMergeNode', { in: 'blur' }), svg('feMergeNode', { in: 'SourceGraphic' })),
+    ),
+  );
+
+  // Urskive (innholdet tegnes av decorate, siden det avhenger av valgt urskive)
+  const face = svg('g', { 'data-part': 'face' });
 
   const wedge = svg('path', { class: 'clock-wedge', 'data-part': 'wedge' });
 
@@ -98,38 +110,164 @@ export function createClock(options = {}) {
     ticks.append(svg('line', { x1, y1, x2, y2, class: major ? 'tick tick-major' : 'tick' }));
   }
 
+  // Tallene: én gruppe per time, med et usynlig merke bak som brukes til trykk og fremheving.
   const numbers = svg('g', { 'data-part': 'numbers' });
   const numberNodes = new Map();
   for (let n = 1; n <= 12; n += 1) {
     const [x, y] = polar(n * 30, 70);
-    const group = svg(
-      'g',
-      { class: 'num', 'data-n': n, 'data-tap': `num:${n}` },
-      svg('circle', { cx: x, cy: y, r: 13, class: 'num-mark' }),
-      svg('text', { x, y, class: 'num-text', 'text-anchor': 'middle', 'dominant-baseline': 'central' }, String(n)),
-    );
+    const group = svg('g', { class: 'num', 'data-n': n, 'data-tap': `num:${n}` }, svg('circle', { cx: x, cy: y, r: 13, class: 'num-mark' }));
     numberNodes.set(n, group);
     numbers.append(group);
   }
 
   // Visere. Den usynlige, tykke streken gjør det lett å treffe viseren med fingeren.
-  const hand = (name, length, width, tail) =>
-    svg(
+  const HAND_SIZES = { hour: [48, 8, 10], minute: [76, 5, 14], second: [86, 1.6, 22] };
+  const hand = (name) => {
+    const [length, , tail] = HAND_SIZES[name];
+    return svg(
       'g',
       { class: `hand hand-${name}`, 'data-part': name, 'data-tap': `hand:${name}` },
       svg('line', { x1: C, y1: C + tail, x2: C, y2: C - length, class: 'hand-hit' }),
-      svg('line', { x1: C, y1: C + tail, x2: C, y2: C - length, class: 'hand-body', 'stroke-width': width }),
     );
-  const hourHand = hand('hour', 48, 8, 10);
-  const minuteHand = hand('minute', 76, 5, 14);
-  const secondHand = hand('second', 86, 1.6, 22);
+  };
+  const hourHand = hand('hour');
+  const minuteHand = hand('minute');
+  const secondHand = hand('second');
   const cap = svg('g', { 'data-part': 'cap' }, svg('circle', { cx: C, cy: C, r: 6, class: 'clock-cap' }));
-  const handsLayer = svg('g', { class: 'hands' }, hourHand, minuteHand, secondHand, cap);
+  const handsLayer = svg('g', { class: 'hands', filter: `url(#${id}-shadow)` }, hourHand, minuteHand, secondHand, cap);
 
-  root.append(face, wedge, ticks, numbers, minuteLabels, handsLayer);
+  root.append(defs, face, wedge, ticks, numbers, minuteLabels, handsLayer);
 
-  function applyDesign(design) {
-    for (const [name, value] of Object.entries(design)) root.style.setProperty(`--clock-${name}`, value);
+  // --- Utseende: urskive, tall, visere og farger fra delene hun har valgt ---
+
+  function drawFace(look) {
+    const extras = [];
+    let fill = null;
+    if (look.fill2) {
+      extras.push(
+        svg(
+          'radialGradient',
+          { id: `${id}-bg`, cx: '50%', cy: '38%', r: '70%' },
+          svg('stop', { offset: '0%', 'stop-color': look.fill }),
+          svg('stop', { offset: '100%', 'stop-color': look.fill2 }),
+        ),
+      );
+      fill = `url(#${id}-bg)`;
+    }
+    const base = svg('circle', { cx: C, cy: C, r: 97, class: 'clock-face' });
+    if (fill) base.style.fill = fill;
+    if (look.glow) base.setAttribute('filter', `url(#${id}-glow)`);
+    const layers = [base];
+
+    if (look.pattern === 'marble') {
+      extras.push(
+        svg('clipPath', { id: `${id}-clip` }, svg('circle', { cx: C, cy: C, r: 95.5 })),
+        svg(
+          'filter',
+          { id: `${id}-marble`, x: 0, y: 0, width: '100%', height: '100%' },
+          svg('feTurbulence', { type: 'fractalNoise', baseFrequency: '0.009 0.03', numOctaves: 4, seed: 7 }),
+          svg('feColorMatrix', { values: '0 0 0 0 0.42  0 0 0 0 0.4  0 0 0 0 0.37  4 0 0 0 -1.9' }),
+        ),
+      );
+      layers.push(svg('rect', { x: 0, y: 0, width: 200, height: 200, filter: `url(#${id}-marble)`, 'clip-path': `url(#${id}-clip)` }));
+    }
+    if (look.pattern === 'carbon') {
+      extras.push(
+        svg(
+          'pattern',
+          { id: `${id}-carbon`, width: 6, height: 6, patternUnits: 'userSpaceOnUse' },
+          svg('rect', { width: 6, height: 6, fill: '#141619' }),
+          svg('rect', { width: 3, height: 3, fill: '#1e2125' }),
+          svg('rect', { x: 3, y: 3, width: 3, height: 3, fill: '#1e2125' }),
+        ),
+      );
+      layers.push(svg('circle', { cx: C, cy: C, r: 95.5, fill: `url(#${id}-carbon)` }));
+    }
+    if (look.pattern === 'stars') {
+      // Faste «tilfeldige» stjerner, så klokka ser lik ut hver gang.
+      for (let i = 0; i < 46; i += 1) {
+        const angle = (i * 137.5) % 360;
+        const radius = 12 + ((i * 53) % 80);
+        const [x, y] = polar(angle, radius);
+        layers.push(svg('circle', { cx: x, cy: y, r: 0.35 + ((i * 7) % 10) / 12, fill: '#ffffff', opacity: 0.25 + ((i * 3) % 7) / 10 }));
+      }
+    }
+    if (look.doubleRing) layers.push(svg('circle', { cx: C, cy: C, r: 92.5, fill: 'none', stroke: look.ring, 'stroke-width': 0.8 }));
+    if (look.bezel) layers.push(svg('path', { d: `M${C} 4.5 L${C - 5} 12 L${C + 5} 12 Z`, fill: look.bezel }));
+
+    face.replaceChildren(svg('defs', {}, ...extras), ...layers);
+  }
+
+  function drawNumbers(kind, look) {
+    numberNodes.forEach((group, n) => {
+      group.querySelectorAll(':not(.num-mark)').forEach((node) => node.remove());
+      const [x, y] = polar(n * 30, 70);
+      const text = (label, size, weight = 600) => {
+        const node = svg('text', { x, y, class: 'num-text', 'text-anchor': 'middle', 'dominant-baseline': 'central' }, label);
+        node.style.font = `${weight} ${size}px ${look.font ?? 'var(--font)'}`;
+        return node;
+      };
+      const quarter = n % 3 === 0;
+      if (kind === 'romerske') group.append(text(ROMAN[n], n === 8 || n === 12 ? 11.5 : 13));
+      else if (kind === 'store') group.append(text(String(n), 22, 800));
+      else if (kind === 'fire') group.append(quarter ? text(String(n), 21, 750) : svg('circle', { cx: x, cy: y, r: 2.6, class: 'num-dot' }));
+      else if (kind === 'streker') {
+        const [x1, y1] = polar(n * 30, quarter ? 62 : 65);
+        const [x2, y2] = polar(n * 30, 77);
+        group.append(svg('line', { x1, y1, x2, y2, class: 'num-stick', 'stroke-width': quarter ? 5 : 3 }));
+      } else group.append(text(String(n), 17));
+    });
+    if (look.glow) numbers.setAttribute('filter', `url(#${id}-glow)`);
+    else numbers.removeAttribute('filter');
+  }
+
+  function drawHands(style) {
+    for (const [name, node] of [['hour', hourHand], ['minute', minuteHand], ['second', secondHand]]) {
+      node.querySelectorAll('.hand-body').forEach((body) => body.remove());
+      const [length, width, tail] = HAND_SIZES[name];
+      const line = (w, extra = {}) => svg('line', { x1: C, y1: C + tail, x2: C, y2: C - length, class: 'hand-body', 'stroke-width': w, ...extra });
+      const dot = (cy, r) => svg('circle', { cx: C, cy, r, class: 'hand-body is-solid' });
+      if (name === 'second') {
+        node.append(line(width), dot(C + tail - 2, 2.6));
+      } else if (style === 'slank') {
+        node.append(line(width * 0.55));
+      } else if (style === 'blokk') {
+        node.append(line(width * 1.35, { 'stroke-linecap': 'butt' }));
+      } else if (style === 'prikk') {
+        node.append(line(width * 0.5), dot(C - length + width, width * 0.95));
+      } else if (style === 'pil') {
+        const half = width / 2;
+        const head = C - length + width * 2.4;
+        const points = [
+          [C - half, C + tail], [C + half, C + tail], [C + half, head], [C + width * 1.25, head],
+          [C, C - length], [C - width * 1.25, head], [C - half, head],
+        ];
+        node.append(svg('polygon', { points: points.map((p) => p.join(',')).join(' '), class: 'hand-body is-solid' }));
+      } else if (style === 'glod') {
+        node.append(line(width * 0.9, { filter: `url(#${id}-glow)` }));
+      } else {
+        node.append(line(width));
+      }
+    }
+  }
+
+  /** Tegner utseendet på nytt bare når valgt design faktisk har endret seg. */
+  function decorate() {
+    const ids = { ...currentDesign(), ...config.design };
+    if (config.numerals) ids.numerals = config.numerals;
+    const key = JSON.stringify(ids);
+    if (key === decorKey) return;
+    decorKey = key;
+    const look = resolveDesign(ids);
+    const colors = { ...look.face, ...look.colors };
+    for (const name of ['ring', 'tick', 'tickMajor', 'number', 'cap', 'hour', 'minute', 'second']) {
+      root.style.setProperty(`--clock-${name}`, colors[name]);
+    }
+    root.style.setProperty('--clock-face', look.face.fill);
+    root.classList.toggle('is-light', Boolean(look.face.light));
+    drawFace(look.face);
+    drawNumbers(look.numerals, look.face);
+    drawHands(look.hands);
   }
 
   function drawWedge() {
@@ -151,7 +289,7 @@ export function createClock(options = {}) {
   }
 
   function applyConfig() {
-    applyDesign(config.design);
+    decorate();
     handsLayer.style.display = config.hands ? '' : 'none';
     minuteLabels.style.display = config.minuteLabels ? '' : 'none';
     secondHand.style.display = config.seconds ? '' : 'none';
@@ -159,7 +297,7 @@ export function createClock(options = {}) {
     runner = config.running
       ? setInterval(() => {
           setTime(time + 1 / 60);
-          play('tick');
+          if (config.tickSound) play('tick');
         }, 1000)
       : null;
     // Minuttallene står utenfor urskiven, så da trengs litt mer plass rundt.
@@ -314,6 +452,8 @@ export function createClock(options = {}) {
       setTime(next);
     },
     animateTo,
+    /** Tegner klokka på nytt med hennes valgte design (etter endring i verkstedet). */
+    refresh: () => decorate(),
     /** Endrer innstillinger uten å lage ny klokke. */
     configure(next) {
       config = { ...config, ...next };

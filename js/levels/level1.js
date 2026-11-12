@@ -8,7 +8,7 @@ const wrap = (n) => ((n - 1 + 120) % 12) + 1;
 // 10:10 og 40 sekunder: alle tre viserne står godt fra hverandre.
 const WITH_SECONDS = 10 * 60 + 10 + 40 / 60;
 
-// «Med klokka» kommer tidlig, siden nesten alt annet bygger på hvilken vei viserne går.
+// Først lærer hun navnene på viserne, så «med klokka», siden kortene etterpå bruker navnene.
 let lastDragTime = null;
 let lastDirection = 'Dra den lange viseren';
 function describeDirection(time) {
@@ -29,6 +29,43 @@ export const intro = [
     title: 'Dette er en urskive',
     text: 'En analog klokke har en rund urskive med tallene 1 til 12. Tallene står alltid i samme rekkefølge, og 12 står øverst.',
     clock: { time: 10 * 60 + 10, highlight: ['numbers'] },
+  },
+  {
+    title: 'Tre visere',
+    text: `En klokke kan ha tre visere: ${HOUR}, ${MINUTE} og ${SECOND}. Navnene brukes i hele appen, så nå skal vi bli godt kjent med hver av dem.`,
+    clock: { time: WITH_SECONDS, seconds: true, running: true, highlight: ['hour', 'minute', 'second'] },
+  },
+  {
+    title: 'Timeviseren',
+    text: `${capitalize(HOUR)} er <b>den korte, tykke</b>. Den viser hvilken time det er. Den går så sakte at du nesten ikke ser at den beveger seg.`,
+    clock: { time: WITH_SECONDS, seconds: true, highlight: ['hour'] },
+    label: () => 'Kort og tykk = timer',
+  },
+  {
+    title: 'Minuttviseren',
+    text: `${capitalize(MINUTE)} er <b>den lange</b>. Den viser minuttene. Den bruker én time på å gå en hel runde.`,
+    clock: { time: WITH_SECONDS, seconds: true, highlight: ['minute'] },
+    label: () => 'Lang = minutter',
+  },
+  {
+    title: 'Sekundviseren',
+    text: `${capitalize(SECOND)} er <b>den tynne som går fort</b>. Den går en hel runde hvert minutt. Mange klokker har ikke sekundviser, så den bruker vi ikke før senere.`,
+    clock: { time: WITH_SECONDS, seconds: true, running: true, tickSound: true, highlight: ['second'] },
+    label: () => 'Tynn og rask = sekunder',
+  },
+  {
+    title: 'Hvem er hvem?',
+    text: 'Trykk på viserne en etter en. Husk: jo kortere viser, jo saktere går den.',
+    clock: { time: WITH_SECONDS, seconds: true, running: true, tappable: 'hands' },
+    tapPrompt: 'Trykk på en viser',
+    onTap: (target) => {
+      if (target.kind !== 'hand') return 'Det er et tall. Prøv å treffe en viser.';
+      return {
+        hour: 'Timeviseren: kort og tykk, viser timene',
+        minute: 'Minuttviseren: lang, viser minuttene',
+        second: 'Sekundviseren: tynn og rask, viser sekundene',
+      }[target.hand];
+    },
   },
   {
     title: 'Med klokka',
@@ -54,43 +91,6 @@ export const intro = [
     title: '60 små streker',
     text: 'Rundt kanten er det 60 små streker. Mellom to tall er det alltid 5 steg. Strekene brukes til å telle minutter, som du lærer om snart.',
     clock: { time: 10 * 60 + 10, highlight: ['ticks'] },
-  },
-  {
-    title: 'Tre visere',
-    text: `En klokke kan ha tre visere: ${HOUR}, ${MINUTE} og ${SECOND}. Navnene brukes i hele appen, så nå skal vi bli godt kjent med hver av dem.`,
-    clock: { time: WITH_SECONDS, seconds: true, running: true, highlight: ['hour', 'minute', 'second'] },
-  },
-  {
-    title: 'Timeviseren',
-    text: `${capitalize(HOUR)} er <b>den korte, tykke</b>. Den viser hvilken time det er. Den går så sakte at du nesten ikke ser at den beveger seg.`,
-    clock: { time: WITH_SECONDS, seconds: true, highlight: ['hour'] },
-    label: () => 'Kort og tykk = timer',
-  },
-  {
-    title: 'Minuttviseren',
-    text: `${capitalize(MINUTE)} er <b>den lange</b>. Den viser minuttene. Den bruker én time på å gå en hel runde.`,
-    clock: { time: WITH_SECONDS, seconds: true, highlight: ['minute'] },
-    label: () => 'Lang = minutter',
-  },
-  {
-    title: 'Sekundviseren',
-    text: `${capitalize(SECOND)} er <b>den tynne som går fort</b>. Den går en hel runde hvert minutt. Mange klokker har ikke sekundviser, så den bruker vi ikke før senere.`,
-    clock: { time: WITH_SECONDS, seconds: true, running: true, highlight: ['second'] },
-    label: () => 'Tynn og rask = sekunder',
-  },
-  {
-    title: 'Hvem er hvem?',
-    text: 'Trykk på viserne en etter en. Husk: jo kortere viser, jo saktere går den.',
-    clock: { time: WITH_SECONDS, seconds: true, running: true, tappable: 'hands' },
-    tapPrompt: 'Trykk på en viser',
-    onTap: (target) => {
-      if (target.kind !== 'hand') return 'Det er et tall. Prøv å treffe en viser.';
-      return {
-        hour: 'Timeviseren: kort og tykk, viser timene',
-        minute: 'Minuttviseren: lang, viser minuttene',
-        second: 'Sekundviseren: tynn og rask, viser sekundene',
-      }[target.hand];
-    },
   },
   {
     title: 'Prøv selv',
