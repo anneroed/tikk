@@ -1,5 +1,5 @@
 // Øk VERSION ved hver publisering, ellers får ikke installerte apper den nye koden.
-const VERSION = '8';
+const VERSION = '9';
 const CACHE = `tikk-${VERSION}`;
 
 const PRECACHE = [

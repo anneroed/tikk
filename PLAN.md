@@ -1,5 +1,7 @@
 # Tikk – plan
 
+Status: fase 1–4 er ferdige, pluss øvingsrom. Fase 5 (publisering) pågår.
+
 En PWA som lærer klokka, fra urskiven til regning med tid. Mørk, moderne smartklokke-stil.
 All data ligger i `localStorage` på enheten.
 
@@ -10,9 +12,10 @@ All data ligger i `localStorage` på enheten.
 | Hjem | `#/` | Hennes klokke viser tiden nå (trykk: «Hva er klokka?»), læringsløypa med 8 nivåer, snarveier til verksted og samling, lydknapp |
 | Nivå – forklaring | `#/niva/2` | Kort, interaktiv forklaring i 4–6 kort, med klokke hun kan dra i. Siste kort: «Start oppgaver» |
 | Oppgaverunde | `#/niva/2/oppgaver` | 5 spørsmål, fremdriftsprikker, tilbakemelding etter hvert svar, oppsummering til slutt |
-| Pakke (fase 3) | inne i oppgaverunden | Etter runden: en pakke som åpnes og avslører en ny klokkedel |
-| Samling (fase 3) | `#/samling` | Alle deler i rutenett, med tomme, låste plasser for det som mangler |
-| Klokkeverksted (fase 3) | `#/verksted` | Sett sammen egen klokke av opplåste deler, med forhåndsvisning |
+| Pakke | inne i oppgaverunden | Etter runden: en pakke som åpnes og avslører en ny klokkedel |
+| Samling | `#/samling` | Alle deler i rutenett, med tomme, låste plasser for det som mangler |
+| Klokkeverksted | `#/verksted` | Sett sammen egen klokke av opplåste deler, med forhåndsvisning |
+| Øvingsrom | `#/ovingsrom`, `#/ov/2-4-5` | Blandede runder på 10 oppgaver fra fullførte nivåer, vektet mot det hun bommer på |
 | Innstillinger | `#/innstillinger` | Lyd av/på, foreldremodus (lås opp nivåer), nullstill |
 | Installer | `#/installer` | Veiledning for «Legg til på Hjem-skjerm» |
 

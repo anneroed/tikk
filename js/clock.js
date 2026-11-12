@@ -74,7 +74,7 @@ export function createClock(options = {}) {
   let decorKey = '';
   const id = `clock${(uid += 1)}`;
 
-  const root = svg('svg', { viewBox: '0 0 200 200', class: 'clock', role: 'img' });
+  const root = svg('svg', { viewBox: '0 0 200 200', class: 'clock', role: 'img', 'aria-label': 'Analog klokke' });
 
   // Felles effekter: skygge under viserne og glød for neon.
   const defs = svg(
